@@ -1,0 +1,276 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id          Int      @id @default(autoincrement())
+  phone       String   @unique
+  name        String?
+  username    String?  @unique
+  email       String?  @unique
+  bio         String?  @db.Text
+  avatar      String?
+  birthdate   String?
+  role        String   @default("user")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  province    String?  @db.VarChar(100)
+  city        String?  @db.VarChar(100)
+  lastLoginAt     DateTime? // ← جدید
+  lastLoginDevice String?   @db.VarChar(255) // ← جدید (اطلاعات مرورگر/دستگاه)
+
+  businesses     Business[]
+  reviews        Review[]
+  problemReports ProblemReport[]
+  bookmarks      Bookmark[]
+  viewHistory    ViewHistory[]
+  searchHistory  SearchHistory[]
+  activityLogs ActivityLog[]
+
+  @@map("users")
+}
+
+model SearchHistory {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  query      String   @db.VarChar(255)
+  created_at DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([created_at])
+  @@map("search_history")
+}
+
+model Category {
+  id         Int        @id @default(autoincrement())
+  name       String     @db.VarChar(100)
+  key_name   String     @unique @db.VarChar(50)
+  icon       String?    @db.VarChar(50)
+  color_1    String?    @db.VarChar(20)
+  color_2    String?    @db.VarChar(20)
+  created_at DateTime   @default(now())
+  businesses Business[]
+
+  @@map("categories")
+}
+
+model Business {
+  id               Int             @id @default(autoincrement())
+  user_id          Int
+  name             String          @db.VarChar(255)
+  description      String?
+  category_id      Int
+  phone            String?         @db.VarChar(20)
+  address          String?
+  latitude         Decimal?        @db.Decimal(10, 8)
+  longitude        Decimal?        @db.Decimal(11, 8)
+  opening_time     DateTime?       @db.Time(6)
+  closing_time     DateTime?       @db.Time(6)
+  status           String          @default("pending") @db.VarChar(20)
+  views            Int             @default(0)
+  created_at       DateTime        @default(now())
+  updated_at       DateTime        @updatedAt
+  call_count       Int             @default(0)
+  route_count      Int             @default(0)
+  card_number      String?         @db.VarChar(30)
+  delivery_enabled Boolean         @default(true)
+  notif_message    Boolean         @default(true)
+  notif_review     Boolean         @default(false)
+  pickup_enabled   Boolean         @default(true)
+  sheba_number     String?         @db.VarChar(30)
+  shipping_cost    Int             @default(0)
+  images           BusinessImage[]
+  category         Category        @relation(fields: [category_id], references: [id])
+  user             User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  conversations    Conversation[]
+  faqs             FAQ[]
+  notifications    Notification[]
+  products         Product[]
+  reviews          Review[]
+  bookmarks   Bookmark[]
+  viewHistory ViewHistory[]
+  activityLogs ActivityLog[]    
+
+  @@index([user_id])
+  @@index([category_id])
+  @@index([status])
+  @@map("businesses")
+}
+
+model BusinessImage {
+  id          Int      @id @default(autoincrement())
+  business_id Int
+  image_url   String   @db.VarChar(500)
+  is_primary  Boolean  @default(false)
+  created_at  DateTime @default(now())
+  business    Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+
+  @@index([business_id])
+  @@map("business_images")
+}
+
+model FAQ {
+  id          Int      @id @default(autoincrement())
+  question    String
+  answer      String
+  business_id Int
+  created_at  DateTime @default(now())
+  business    Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+
+  @@index([business_id])
+  @@map("faqs")
+}
+
+model Review {
+  id          Int       @id @default(autoincrement())
+  business_id Int
+  user_id     Int
+  rating      Int       @db.SmallInt
+  comment     String?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  replied_at  DateTime?
+  reply       String?
+  business    Business  @relation(fields: [business_id], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [user_id], references: [id])
+
+  @@unique([business_id, user_id])
+  @@index([business_id])
+  @@index([user_id])
+  @@map("reviews")
+}
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  business_id Int
+  name        String   @db.VarChar(255)
+  category    String   @db.VarChar(100)
+  price       Int
+  stock       Int      @default(0)
+  discount    Int      @default(0)
+  color       String?  @db.VarChar(20)
+  active      Boolean  @default(true)
+  image_url   String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  business    Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+
+  @@index([business_id])
+  @@map("products")
+}
+
+model Conversation {
+  id            Int       @id @default(autoincrement())
+  business_id   Int
+  customer_id   Int?
+  customer_name String    @db.VarChar(255)
+  last_message  String?
+  unread        Boolean   @default(false)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  business      Business  @relation(fields: [business_id], references: [id], onDelete: Cascade)
+  messages      Message[]
+
+  @@index([business_id])
+  @@map("conversations")
+}
+
+model Message {
+  id              Int          @id @default(autoincrement())
+  conversation_id Int
+  sender          String       @db.VarChar(10)
+  text            String
+  created_at      DateTime     @default(now())
+  conversation    Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+
+  @@index([conversation_id])
+  @@map("messages")
+}
+
+model Notification {
+  id          Int      @id @default(autoincrement())
+  business_id Int
+  title       String   @db.VarChar(255)
+  desc        String?
+  icon        String?
+  color       String?  @db.VarChar(20)
+  read        Boolean  @default(false)
+  created_at  DateTime @default(now())
+  business    Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+
+  @@index([business_id])
+  @@index([read])
+  @@map("notifications")
+}
+
+model ProblemReport {
+  id          Int      @id @default(autoincrement())
+  user_id     Int?
+  subject     String   @db.VarChar(255)
+  description String
+  status      String   @default("pending") @db.VarChar(20)
+  created_at  DateTime @default(now())
+  user        User?    @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+  @@index([status])
+  @@map("problem_reports")
+}
+
+// ============================================
+// بوکمارک‌های کاربر
+// ============================================
+model Bookmark {
+  id          Int      @id @default(autoincrement())
+  user_id     Int
+  business_id Int
+  created_at  DateTime @default(now())
+
+  user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, business_id])
+  @@index([user_id])
+  @@index([business_id])
+  @@map("bookmarks")
+}
+
+// ============================================
+// تاریخچه بازدید کاربر از کسب‌وکارها
+// ============================================
+model ViewHistory {
+  id          Int      @id @default(autoincrement())
+  user_id     Int
+  business_id Int
+  viewed_at   DateTime @default(now())
+
+  user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([business_id])
+  @@index([viewed_at])
+  @@map("view_history")
+}
+
+model ActivityLog {
+  id          Int      @id @default(autoincrement())
+  user_id     Int
+  business_id Int?
+  type        String   @db.VarChar(30) // review | bookmark_add | bookmark_remove | profile_update | chat_start
+  message     String   @db.VarChar(500)
+  created_at  DateTime @default(now())
+
+  user     User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  business Business? @relation(fields: [business_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id])
+  @@index([created_at])
+  @@map("activity_logs")
+}

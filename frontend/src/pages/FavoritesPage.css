@@ -1,0 +1,353 @@
+/* ============ FAVORITES PAGE ============ */
+/* از همون متغیرها و کلاس‌های HomePage.css استفاده می‌کنه (رنگ‌ها، فونت، رادیوس‌ها و ...) */
+
+.fav-content{
+    padding:18px 14px;
+    display:flex;
+    flex-direction:column;
+    gap:22px;
+    max-width:1300px;
+    margin:0 auto;
+  }
+
+  /* ---- Header (بازطراحی‌شده) ---- */
+  .fav-header{
+    position:relative;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    flex-wrap:nowrap;          /* همیشه یک خط */
+    padding:14px 16px;
+    border-radius:var(--radius-lg);
+    background:linear-gradient(135deg, var(--primary-tint), var(--surface) 60%);
+    border:1px solid var(--border);
+    overflow:hidden;
+  }
+  .fav-header::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:radial-gradient(circle at 90% -10%, var(--primary) 0%, transparent 55%);
+    opacity:.12;
+    pointer-events:none;
+  }
+  
+  .fav-header-right{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    min-width:0;
+    z-index:1;
+    flex:1;                    /* تا فضای باقی‌مانده رو بگیره */
+  }
+
+  .fav-mobile-logo{
+    display:none;
+    height:28px;               /* اندازه متناسب با موبایل */
+    width:auto;
+    flex-shrink:0;
+  }
+  
+  @media (max-width:980px){
+    .fav-mobile-logo{ display:block; }
+  }
+  @media (max-width:520px){
+    .fav-mobile-logo{ height:26px; }
+  }
+  
+  .fav-theme-btn{
+    z-index:1;
+    flex-shrink:0;
+  }
+  .fav-icon-btn{
+    width:34px;
+    height:34px;
+    border-radius:50%;
+    border:1px solid var(--border);
+    background:var(--surface);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--text-muted);
+    cursor:pointer;
+    transition:.2s;
+    flex-shrink:0;
+  }
+
+.fav-icon-btn svg{ width:16px; height:16px; }
+.fav-icon-btn:hover{ color:var(--primary); border-color:var(--primary); transform:translateY(-1px); }
+
+.fav-title-wrap{
+  display:flex;
+  flex-direction:row;        /* عنوان و آیکون در یک خط */
+  align-items:center;
+  gap:8px;
+  min-width:0;
+  flex:1;
+}
+.fav-title{
+  font-size:16px;
+  font-weight:900;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  letter-spacing:-.2px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.fav-title-icon{
+  width:30px;
+  height:30px;
+  border-radius:9px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--primary-tint);
+  color:var(--primary);
+  flex-shrink:0;
+}
+
+.fav-title-icon svg{ width:16px; height:16px; }
+.fav-subtitle{ display:none; }   /* در موبایل مخفی می‌شه تا جا باز بشه */
+
+.fav-count{
+  font-size:11px;
+  font-weight:800;
+  color:var(--primary);
+  background:var(--surface);
+  border:1px solid var(--border);
+  padding:5px 10px;
+  border-radius:999px;
+  white-space:nowrap;
+  z-index:1;
+  flex-shrink:0;
+}
+
+  /* ---- Tabs (همون منطق mode-toggle) ---- */
+  .fav-tabs{
+    display:flex;
+    align-items:center;
+    gap:4px;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:999px;
+    padding:4px;
+    width:fit-content;
+    max-width:100%;
+    overflow-x:auto;
+  }
+  .fav-tabs button{
+    border:none;
+    background:transparent;
+    padding:9px 18px;
+    border-radius:999px;
+    font-family:inherit;
+    font-size:12.5px;
+    font-weight:700;
+    color:var(--text-muted);
+    cursor:pointer;
+    white-space:nowrap;
+    transition:.2s;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .fav-tabs button.active{
+    background:var(--primary);
+    color:#fff;
+    box-shadow:0 4px 14px -4px var(--primary);
+  }
+  .fav-tabs button .tab-count{
+    font-size:10.5px;
+    opacity:.85;
+  }
+
+  /* ---- Grid (بر پایه results-grid) ---- */
+  .fav-grid{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:14px;
+  }
+
+  /* ---- Card (بر پایه shop-card) با دکمه‌ی حذف علاقه‌مندی ---- */
+  .fav-card{
+    position:relative;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius-md);
+    overflow:hidden;
+    transition:.25s;
+  }
+  .fav-card:hover, .fav-card:active{
+    transform:translateY(-3px);
+    box-shadow:0 24px 40px -20px var(--glow-color, rgba(0,0,0,.35)), 0 0 0 1px var(--glow-color, transparent);
+  }
+
+  /* دکمه‌ی سیو (به‌جای قلب) — آیکون مینیمال بوکمارک */
+  .fav-heart-btn{
+    position:absolute;
+    top:10px;
+    inset-inline-end:10px;
+    z-index:3;
+    width:34px;
+    height:34px;
+    border-radius:50%;
+    border:none;
+    background:rgba(0,0,0,.35);
+    backdrop-filter:blur(6px);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    transition:.2s;
+  }
+  .fav-heart-btn svg{
+    width:16px;
+    height:16px;
+    color:#fff;
+    fill:none;
+    stroke:currentColor;
+    stroke-width:2;
+    transition:.2s;
+  }
+  .fav-heart-btn.is-fav{
+    background:var(--primary);
+  }
+  .fav-heart-btn.is-fav svg{
+    color:#fff;
+    fill:#fff;
+    stroke:#fff;
+  }
+  .fav-heart-btn:hover{ background:rgba(0,0,0,.5); transform:scale(1.06); }
+  .fav-heart-btn.is-fav:hover{ filter:brightness(1.08); }
+
+  .fav-card .shop-media{
+    height:100px;
+    position:relative;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+  }
+  .fav-card .shop-media::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:radial-gradient(circle at 30% 20%, rgba(255,255,255,.25), transparent 60%);
+  }
+  .fav-card .shop-media svg{ width:32px; height:32px; color:#fff; opacity:.95; z-index:1; }
+
+  .fav-card .shop-badge{
+    position:absolute;
+    top:10px;
+    inset-inline-start:10px;
+    font-size:10px;
+    font-weight:800;
+    padding:5px 10px;
+    border-radius:999px;
+    background:rgba(0,0,0,.35);
+    color:#fff;
+    backdrop-filter:blur(6px);
+    z-index:2;
+  }
+
+  .fav-card .shop-body{ padding:14px; display:flex; flex-direction:column; gap:10px; }
+  .fav-card .shop-name{ font-size:13.5px; font-weight:800; display:flex; align-items:center; gap:5px; }
+  .fav-card .shop-name svg{ width:14px; height:14px; color:var(--primary); flex-shrink:0; }
+  .fav-card .shop-tag{ font-size:11px; color:var(--text-muted); margin-top:3px; font-weight:600; }
+  .fav-card .shop-meta{ display:flex; align-items:center; justify-content:space-between; font-size:11.5px; color:var(--text-muted); }
+  .fav-card .rating{ display:flex; align-items:center; gap:4px; color:var(--accent); font-weight:800; }
+  .fav-card .rating svg{ width:13px; height:13px; }
+  .fav-card .shop-addr{ font-size:11.5px; color:var(--text-muted); line-height:1.7; border-top:1px dashed var(--border); padding-top:10px; }
+
+  .fav-added-at{
+    font-size:10.5px;
+    color:var(--text-muted);
+    font-weight:600;
+    display:flex;
+    align-items:center;
+    gap:5px;
+  }
+  .fav-added-at svg{ width:12px; height:12px; }
+
+  /* ---- Empty state ---- */
+  .fav-empty{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    gap:14px;
+    padding:60px 20px;
+    background:var(--surface);
+    border:1px dashed var(--border);
+    border-radius:var(--radius-lg);
+  }
+  .fav-empty-icon{
+    width:64px;
+    height:64px;
+    border-radius:50%;
+    background:var(--card);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--text-muted);
+  }
+  .fav-empty-icon svg{ width:28px; height:28px; }
+  .fav-empty h3{ font-size:15px; font-weight:800; }
+  .fav-empty p{ font-size:12.5px; color:var(--text-muted); max-width:320px; line-height:1.8; }
+  .fav-empty-cta{
+    border:none;
+    background:var(--primary);
+    color:#fff;
+    font-family:inherit;
+    font-weight:700;
+    font-size:12.5px;
+    padding:11px 22px;
+    border-radius:999px;
+    cursor:pointer;
+    box-shadow:0 8px 18px -8px var(--primary);
+    transition:.2s;
+  }
+  .fav-empty-cta:hover{ filter:brightness(1.08); }
+
+  /* ---- Responsive (هماهنگ با HomePage) ---- */
+  @media (min-width:760px){
+    .fav-grid{ grid-template-columns:repeat(2,1fr); gap:16px; }
+    .fav-content{ padding:26px 22px; }
+  }
+
+  @media (min-width:980px){
+    .fav-grid{ grid-template-columns:repeat(3,1fr); }
+    .fav-content{ padding:32px; gap:26px; }
+  }
+
+/* ---- Responsive موبایل ---- */
+@media (max-width:520px){
+  .fav-header{
+    padding:12px 12px;
+    gap:8px;
+  }
+  .fav-header-right{
+    gap:6px;
+  }
+  .fav-title{
+    font-size:14.5px;
+  }
+  .fav-title-icon{
+    width:28px;
+    height:28px;
+  }
+  .fav-title-icon svg{ width:15px; height:15px; }
+  .fav-icon-btn{
+    width:32px;
+    height:32px;
+  }
+  .fav-icon-btn svg{ width:15px; height:15px; }
+  .fav-count{
+    padding:4px 9px;
+    font-size:10.5px;
+  }
+}

@@ -1,0 +1,169 @@
+/*
+  این استایل‌ها به CSS Variableهای صفحه‌ی والد وابسته‌اند
+  (--bg, --surface, --card, --text, --text-muted, --primary, --border و...)
+  و باید در صفحه‌ای که این کامپوننت داخلش استفاده می‌شود، این متغیرها تعریف شده باشند.
+*/
+
+.bdp-topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 30px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.bdp-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 16px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  font-weight: 700;
+  cursor: pointer;
+  transition: .18s;
+}
+
+.bdp-back-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.bdp-back-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.bdp-crumbs {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.bdp-crumbs b {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.bdp-crumbs .sep {
+  opacity: .5;
+}
+
+.bdp-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  cursor: pointer;
+  position: relative;
+  transition: .2s ease;
+}
+
+.bdp-icon-btn svg {
+  width: 17px;
+  height: 17px;
+}
+
+.bdp-icon-btn:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.bdp-icon-btn.is-active,
+.bdp-icon-btn.saved {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+@media (max-width: 760px) {
+  .bdp-topbar {
+    padding: 12px;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 520px) {
+  .bdp-topbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 12px;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  .bdp-back-btn {
+    flex-shrink: 0;
+    height: 32px;
+    padding: 0 10px;
+    font-size: 10.5px;
+    border-radius: 999px;
+    gap: 4px;
+  }
+
+  .bdp-back-btn svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .bdp-icon-btn {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    border-radius: 50%;
+  }
+
+  .bdp-icon-btn svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .bdp-crumbs {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 10.5px;
+  }
+
+  .bdp-crumbs b {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10.5px;
+  }
+
+  .bdp-crumbs .sep {
+    opacity: .45;
+    flex-shrink: 0;
+  }
+}
