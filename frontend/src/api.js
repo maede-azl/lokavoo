@@ -142,9 +142,21 @@ getDashboardReports: (businessId) =>
   request('GET', `/businesses/${businessId}/reports`),
 };
 
+// ==================== اشتراک‌ها ====================
+const subscriptionService = {
+  getPlans: () => request("GET", "/subscriptions/plans"),
+
+  getMySubscription: (businessId) =>
+    request("GET", `/subscriptions/my/${businessId}`),
+
+  subscribe: (businessId, planId) =>
+    request("POST", "/subscriptions/subscribe", { businessId, planId }),
+};
+
 const api = {
   auth: authService,
   business: businessService,
+  subscription: subscriptionService,
 };
 
 export default api;

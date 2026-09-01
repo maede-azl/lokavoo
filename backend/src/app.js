@@ -41,6 +41,7 @@ app.use('/api/neshan', neshanRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/subscriptions', require('./routes/subscription.routes'));
 app.get('/api/profile/test', (req, res) => {
   res.json({ success: true, message: 'profile route is working' });
 });

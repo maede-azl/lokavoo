@@ -1,6 +1,6 @@
 // prisma/seed.js
 const { PrismaClient } = require('@prisma/client');
-const prisma = require('../config/db');   // مسیر رو نسبت به فایل خودت تنظیم کن
+const prisma = require('../src/config/db');
 
 async function main() {
   console.log('🌱 شروع seed کردن دیتابیس...');
@@ -57,6 +57,132 @@ async function main() {
   }
 
   console.log(`✅ ${categories.length} دسته‌بندی ایجاد/به‌روزرسانی شدند`);
+
+    console.log(`✅ ${categories.length} دسته‌بندی ایجاد/به‌روزرسانی شدند`);
+
+  // ========== Seed Subscription Plans ==========
+  const plans = [
+    // پایه - رایگان
+    {
+      key: "basic",
+      name: "استارک پایه",
+      billing_cycle: "monthly",
+      price: 0,
+      duration_days: 30,
+      max_images: 20,
+      search_priority: 0,
+      can_pin: false,
+      show_in_suggested: false,
+      can_advertise: false,
+      ad_priority: 0,
+      view_stats: false,
+      click_stats: false,
+      support_level: "normal",
+      click_discount: 0,
+    },
+    {
+      key: "basic",
+      name: "استارک پایه",
+      billing_cycle: "yearly",
+      price: 0,
+      duration_days: 365,
+      max_images: 20,
+      search_priority: 0,
+      can_pin: false,
+      show_in_suggested: false,
+      can_advertise: false,
+      ad_priority: 0,
+      view_stats: false,
+      click_stats: false,
+      support_level: "normal",
+      click_discount: 0,
+    },
+    // حرفه‌ای
+    {
+      key: "pro",
+      name: "حرفه‌ای",
+      billing_cycle: "monthly",
+      price: 399000,
+      duration_days: 30,
+      max_images: 40,
+      search_priority: 10,
+      can_pin: false,
+      show_in_suggested: false,
+      can_advertise: true,
+      ad_priority: 5,
+      view_stats: true,
+      click_stats: true,
+      support_level: "priority",
+      click_discount: 20,
+    },
+    {
+      key: "pro",
+      name: "حرفه‌ای",
+      billing_cycle: "yearly",
+      price: 3990000,
+      duration_days: 365,
+      max_images: 40,
+      search_priority: 10,
+      can_pin: false,
+      show_in_suggested: false,
+      can_advertise: true,
+      ad_priority: 5,
+      view_stats: true,
+      click_stats: true,
+      support_level: "priority",
+      click_discount: 20,
+    },
+    // حرفه‌ای پلاس
+    {
+      key: "pro_plus",
+      name: "حرفه‌ای پلاس",
+      billing_cycle: "monthly",
+      price: 699000,
+      duration_days: 30,
+      max_images: 100,
+      search_priority: 20,
+      can_pin: true,
+      show_in_suggested: true,
+      can_advertise: true,
+      ad_priority: 10,
+      view_stats: true,
+      click_stats: true,
+      support_level: "vip",
+      click_discount: 40,
+    },
+    {
+      key: "pro_plus",
+      name: "حرفه‌ای پلاس",
+      billing_cycle: "yearly",
+      price: 6990000,
+      duration_days: 365,
+      max_images: 100,
+      search_priority: 20,
+      can_pin: true,
+      show_in_suggested: true,
+      can_advertise: true,
+      ad_priority: 10,
+      view_stats: true,
+      click_stats: true,
+      support_level: "vip",
+      click_discount: 40,
+    },
+  ];
+
+  for (const plan of plans) {
+    await prisma.subscriptionPlan.upsert({
+      where: {
+        key_billing_cycle: {
+          key: plan.key,
+          billing_cycle: plan.billing_cycle,
+        },
+      },
+      update: plan,
+      create: plan,
+    });
+  }
+
+  console.log(`✅ ${plans.length} پلن اشتراک ایجاد/به‌روزرسانی شدند`);
 
   // کاربر تست
   const testUser = await prisma.user.upsert({

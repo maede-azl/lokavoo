@@ -5,6 +5,7 @@ import logoBlack from "../assets/locavo-logo-black.png";
 import logoWhite from "../assets/locavo-logo-white.png";
 import { createPortal } from 'react-dom';
 import api from '../api';
+import SubscriptionCard from '../components/SubscriptionCard';
 
 const HOME_PATH = '/';
 const ADD_BUSINESS_PATH = '/add-business';
@@ -56,7 +57,7 @@ function getInitialTheme() {
   try {
     const fromStorage = localStorage.getItem('theme') || localStorage.getItem('mode') || localStorage.getItem('data-mode');
     if (fromStorage === 'dark' || fromStorage === 'light') return fromStorage;
-  } catch (_) {}
+  } catch (_) { }
   return 'light';
 }
 
@@ -113,7 +114,7 @@ export default function SellerDashboard() {
   const [toastMsg, setToastMsg] = useState('');
   const [showToast, setShowToast] = useState(false);
   const [theme, setTheme] = useState(getInitialTheme);
-const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [activeConvoId, setActiveConvoId] = useState(null);
@@ -124,22 +125,22 @@ const [currentUser, setCurrentUser] = useState(null);
 
   const [myBusinesses, setMyBusinesses] = useState([]);
   const [businessesLoading, setBusinessesLoading] = useState(true);
-const [activeBusinessId, setActiveBusinessId] = useState(() => {
-  try {
-    const saved = localStorage.getItem("activeBusinessId");
-    return saved ? Number(saved) : null;
-  } catch {
-    return null;
-  }
-});
-const selectBusiness = (id) => {
-  const numId = id == null ? null : Number(id);
-  setActiveBusinessId(numId);
-  try {
-    if (numId) localStorage.setItem("activeBusinessId", String(numId));
-    else localStorage.removeItem("activeBusinessId");
-  } catch (_) {}
-};
+  const [activeBusinessId, setActiveBusinessId] = useState(() => {
+    try {
+      const saved = localStorage.getItem("activeBusinessId");
+      return saved ? Number(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const selectBusiness = (id) => {
+    const numId = id == null ? null : Number(id);
+    setActiveBusinessId(numId);
+    try {
+      if (numId) localStorage.setItem("activeBusinessId", String(numId));
+      else localStorage.removeItem("activeBusinessId");
+    } catch (_) { }
+  };
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsMeta, setReviewsMeta] = useState({ count: 0, average: 0 });
@@ -163,13 +164,13 @@ const selectBusiness = (id) => {
     avgRating: 0,
     unreadMessages: 0,
   });
-const [reports, setReports] = useState({
-  monthlyViews: 0,
-  profileViews: 0,
-  productClicks: 0,
-  visibilityScore: 0,
-  weeklyViews: [],
-});
+  const [reports, setReports] = useState({
+    monthlyViews: 0,
+    profileViews: 0,
+    productClicks: 0,
+    visibilityScore: 0,
+    weeklyViews: [],
+  });
   const [editingProduct, setEditingProduct] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -183,6 +184,9 @@ const [reports, setReports] = useState({
 
   const businessDetailPath = `/business/${activeBusinessId}`;
   const [planMode, setPlanMode] = useState('monthly');
+  const [plans, setPlans] = useState([]);
+  const [currentSubscription, setCurrentSubscription] = useState(null);
+  const [subscribing, setSubscribing] = useState(false);
   const toastTimer = useRef(null);
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -196,7 +200,7 @@ const [reports, setReports] = useState({
       localStorage.setItem('theme', theme);
       localStorage.setItem('mode', theme);
       localStorage.setItem('data-mode', theme);
-    } catch (_) {}
+    } catch (_) { }
   }, [theme]);
 
   useEffect(() => {
@@ -268,6 +272,7 @@ const [reports, setReports] = useState({
     loadReports(activeBusinessId);
     loadSettings(activeBusinessId);
     loadCurrentUser();
+    loadMySubscription(activeBusinessId);
 
     // هر ۲۰ ثانیه نوتیف و پیام‌ها را رفرش کن (وقتی تب فعال است)
     const interval = setInterval(() => {
@@ -280,6 +285,11 @@ const [reports, setReports] = useState({
 
     return () => clearInterval(interval);
   }, [activeBusinessId]);
+
+  useEffect(() => {
+  loadPlans();
+}, []);
+
   function go(page) {
     setActivePage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -323,7 +333,7 @@ const [reports, setReports] = useState({
         const nextId = normalized[0].id;
         try {
           localStorage.setItem('activeBusinessId', String(nextId));
-        } catch (_) {}
+        } catch (_) { }
         return nextId;
       });
     } catch (err) {
@@ -333,33 +343,33 @@ const [reports, setReports] = useState({
       setBusinessesLoading(false);
     }
   };
-  
-const loadCurrentUser = async () => {
-  try {
-    // اول از localStorage (اگه موقع لاگین ذخیره کردی)
-    const cached = localStorage.getItem('user');
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (parsed?.name || parsed?.phone) {
-          setCurrentUser(parsed);
-        }
-      } catch (_) {}
-    }
 
-    // بعد از API تا همیشه به‌روز باشه
-    const res = await api.auth.getMe();
-    const user = res?.data || res?.user || res;
-    if (user) {
-      setCurrentUser(user);
-      try {
-        localStorage.setItem('user', JSON.stringify(user));
-      } catch (_) {}
+  const loadCurrentUser = async () => {
+    try {
+      // اول از localStorage (اگه موقع لاگین ذخیره کردی)
+      const cached = localStorage.getItem('user');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed?.name || parsed?.phone) {
+            setCurrentUser(parsed);
+          }
+        } catch (_) { }
+      }
+
+      // بعد از API تا همیشه به‌روز باشه
+      const res = await api.auth.getMe();
+      const user = res?.data || res?.user || res;
+      if (user) {
+        setCurrentUser(user);
+        try {
+          localStorage.setItem('user', JSON.stringify(user));
+        } catch (_) { }
+      }
+    } catch (err) {
+      console.error('خطا در دریافت اطلاعات کاربر:', err);
     }
-  } catch (err) {
-    console.error('خطا در دریافت اطلاعات کاربر:', err);
-  }
-};
+  };
   // ---------- محصولات ----------
   const loadProducts = async (businessId) => {
     if (!businessId) {
@@ -374,11 +384,11 @@ const loadCurrentUser = async () => {
         let status = 'موجود';
         if (p.active === false || p.stock === 0) status = 'ناموجود';
         else if (p.stock <= 2) status = 'رو به اتمام';
- const imageUrl = p.image_url
-  ? p.image_url.startsWith('http')
-    ? p.image_url
-    : `http://localhost:5000${p.image_url.startsWith('/') ? '' : '/'}${p.image_url}`
-  : null;
+        const imageUrl = p.image_url
+          ? p.image_url.startsWith('http')
+            ? p.image_url
+            : `http://localhost:5000${p.image_url.startsWith('/') ? '' : '/'}${p.image_url}`
+          : null;
         return {
           id: p.id,
           name: p.name || 'بدون نام',
@@ -525,23 +535,82 @@ const loadCurrentUser = async () => {
       console.error('خطا در دریافت آمار:', err);
     }
   };
-const loadReports = async (businessId) => {
-  if (!businessId) return;
+  const loadReports = async (businessId) => {
+    if (!businessId) return;
+    try {
+      const res = await api.business.getDashboardReports(businessId);
+      setReports(
+        res?.data || {
+          monthlyViews: 0,
+          profileViews: 0,
+          productClicks: 0,
+          visibilityScore: 0,
+          weeklyViews: [],
+        }
+      );
+    } catch (err) {
+      console.error('خطا در دریافت گزارشات:', err);
+    }
+  };
+
+  //-------------- اشتراک ها ------------//
+  const loadPlans = async () => {
+    try {
+      const res = await api.subscription.getPlans();
+      setPlans(res?.data || []);
+    } catch (err) {
+      console.error('خطا در دریافت پلن‌ها:', err);
+    }
+  };
+  const loadMySubscription = async (businessId) => {
+    if (!businessId) {
+      setCurrentSubscription(null);
+      return;
+    }
+    try {
+      const res = await api.subscription.getMySubscription(businessId);
+      setCurrentSubscription(res?.data || null);
+    } catch (err) {
+      console.error('خطا در دریافت اشتراک فعلی:', err);
+      setCurrentSubscription(null);
+    }
+  };
+
+ const handleSubscribe = async (planKey) => {
+  if (!activeBusinessId) {
+    toast('ابتدا یک مغازه انتخاب کنید');
+    return;
+  }
+
+  const plan = getPlan(planKey);
+  if (!plan) {
+    toast('پلن پیدا نشد');
+    return;
+  }
+
+  // نام‌های تمیز برای نمایش
+  const displayNames = {
+    basic: 'پایه',
+    pro: 'حرفه‌ای',
+    pro_plus: 'حرفه‌ای پلاس',
+  };
+
+  const displayName = displayNames[planKey] || plan.name;
+
   try {
-    const res = await api.business.getDashboardReports(businessId);
-    setReports(
-      res?.data || {
-        monthlyViews: 0,
-        profileViews: 0,
-        productClicks: 0,
-        visibilityScore: 0,
-        weeklyViews: [],
-      }
-    );
+    setSubscribing(true);
+
+    const res = await api.subscription.subscribe(activeBusinessId, plan.id);
+    setCurrentSubscription(res?.data || { plan: { key: planKey }, status: 'active' });
+    toast(`اشتراک «${displayName}» با موفقیت فعال شد`);
   } catch (err) {
-    console.error('خطا در دریافت گزارشات:', err);
+    console.error(err);
+    toast(err.message || 'خطا در فعال‌سازی اشتراک');
+  } finally {
+    setSubscribing(false);
   }
 };
+
   // ---------- پیام‌ها ----------
   const loadConversations = async (businessId) => {
     if (!businessId) return;
@@ -584,7 +653,7 @@ const loadReports = async (businessId) => {
     );
     setMobileChatOpen(true);
     setDraft('');
-    api.business.markConversationRead(id).catch(() => {});
+    api.business.markConversationRead(id).catch(() => { });
   }
 
   function closeChatMobile() {
@@ -600,11 +669,11 @@ const loadReports = async (businessId) => {
         prev.map((c) =>
           c.id === activeConvoId
             ? {
-                ...c,
-                messages: [...c.messages, { from: 'out', text, time: 'اکنون' }],
-                time: 'اکنون',
-                unread: 0,
-              }
+              ...c,
+              messages: [...c.messages, { from: 'out', text, time: 'اکنون' }],
+              time: 'اکنون',
+              unread: 0,
+            }
             : c
         )
       );
@@ -838,13 +907,26 @@ const loadReports = async (businessId) => {
 
 
   const activeProductsCount = products.filter((p) => p.status === 'موجود').length;
-const filteredProducts = products.filter((p) =>
-  p.name.includes(productFilter || '')
-);
-  const prices =
-    planMode === 'monthly'
-      ? { start: '۱۹۹٬۰۰۰', growth: '۳۹۹٬۰۰۰', plus: '۶۹۹٬۰۰۰', unit: 'تومان / ماه' }
-      : { start: '۱٬۹۹۰٬۰۰۰', growth: '۳٬۹۹۰٬۰۰۰', plus: '۶٬۹۹۰٬۰۰۰', unit: 'تومان / سال' };
+  const filteredProducts = products.filter((p) =>
+    p.name.includes(productFilter || '')
+  );
+
+  const formatPrice = (n) => (n || 0).toLocaleString('fa-IR');
+
+  const getPlan = (key) =>
+    plans.find((p) => p.key === key && p.billing_cycle === planMode);
+
+  console.log('plans from state:', plans);
+console.log('pro plan found:', getPlan('pro'));
+
+  const prices = {
+    start: formatPrice(getPlan('basic')?.price ?? 0),
+    growth: formatPrice(getPlan('pro')?.price ?? 0),
+    plus: formatPrice(getPlan('pro_plus')?.price ?? 0),
+    unit: planMode === 'monthly' ? 'تومان / ماه' : 'تومان / سال',
+  };
+
+  const currentPlanKey = currentSubscription?.plan?.key || 'basic';
 
   return (
     <div className="seller-dashboard-page" data-mode={theme}>
@@ -1082,14 +1164,14 @@ const filteredProducts = products.filter((p) =>
                     document.body
                   )}
                 </div>
-      <div className="profile-chip">
-  <div className="pc-avatar">
-    {(currentUser?.name || currentUser?.phone || 'ف')[0]}
-  </div>
-  <span>
-    {currentUser?.name || currentUser?.phone || 'فروشنده'}
-  </span>
-</div>
+                <div className="profile-chip">
+                  <div className="pc-avatar">
+                    {(currentUser?.name || currentUser?.phone || 'ف')[0]}
+                  </div>
+                  <span>
+                    {currentUser?.name || currentUser?.phone || 'فروشنده'}
+                  </span>
+                </div>
               </div>
             </header>
           )}
@@ -1220,94 +1302,94 @@ const filteredProducts = products.filter((p) =>
                     />
                   </div>
                 </div>
-             <div style={{ overflowX: 'auto' }}>
-  <table className="data-table">
-    <thead>
-      <tr>
-        <th>تصویر</th>
-        <th>محصول</th>
-        <th>قیمت</th>
-        <th>موجودی</th>
-        <th>وضعیت</th>
-        <th>عملیات</th>
-      </tr>
-    </thead>
-    <tbody>
-      {productsLoading ? (
-        <tr>
-          <td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
-            در حال بارگذاری...
-          </td>
-        </tr>
-      ) : filteredProducts.length === 0 ? (
-        <tr>
-          <td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
-            محصولی یافت نشد
-          </td>
-        </tr>
-      ) : (
-        filteredProducts.map((p, idx) => (
-          <tr key={p.id} style={{ animationDelay: `${idx * 0.04}s` }}>
-            <td>
-              <div
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 10,
-                  overflow: 'hidden',
-                  background: 'var(--card)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 20,
-                }}
-              >
-                {p.image ? (
-                  <img
-                    src={p.image}
-                    alt={p.name}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                ) : (
-                  p.emoji
-                )}
-              </div>
-            </td>
-            <td className="cust">{p.name}</td>
-            <td>{p.price} تومان</td>
-            <td>{p.stock}</td>
-            <td>
-              <span className={statusPillClass(p.status)}>
-                <span className="d" />
-                {p.status}
-              </span>
-            </td>
-            <td>
-              <div className="row-actions">
-                <button title="ویرایش" onClick={() => openEditProduct(p)}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                    <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                  </svg>
-                </button>
-                <button
-                  title="حذف"
-                  style={{ color: 'var(--danger)' }}
-                  onClick={() => confirmDeleteProduct(p.id)}
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                    <path d="M10 11v6M14 11v6" />
-                  </svg>
-                </button>
-              </div>
-            </td>
-          </tr>
-        ))
-      )}
-    </tbody>
-  </table>
-</div>
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>تصویر</th>
+                        <th>محصول</th>
+                        <th>قیمت</th>
+                        <th>موجودی</th>
+                        <th>وضعیت</th>
+                        <th>عملیات</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {productsLoading ? (
+                        <tr>
+                          <td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
+                            در حال بارگذاری...
+                          </td>
+                        </tr>
+                      ) : filteredProducts.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
+                            محصولی یافت نشد
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredProducts.map((p, idx) => (
+                          <tr key={p.id} style={{ animationDelay: `${idx * 0.04}s` }}>
+                            <td>
+                              <div
+                                style={{
+                                  width: 42,
+                                  height: 42,
+                                  borderRadius: 10,
+                                  overflow: 'hidden',
+                                  background: 'var(--card)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: 20,
+                                }}
+                              >
+                                {p.image ? (
+                                  <img
+                                    src={p.image}
+                                    alt={p.name}
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  />
+                                ) : (
+                                  p.emoji
+                                )}
+                              </div>
+                            </td>
+                            <td className="cust">{p.name}</td>
+                            <td>{p.price} تومان</td>
+                            <td>{p.stock}</td>
+                            <td>
+                              <span className={statusPillClass(p.status)}>
+                                <span className="d" />
+                                {p.status}
+                              </span>
+                            </td>
+                            <td>
+                              <div className="row-actions">
+                                <button title="ویرایش" onClick={() => openEditProduct(p)}>
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                    <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                  </svg>
+                                </button>
+                                <button
+                                  title="حذف"
+                                  style={{ color: 'var(--danger)' }}
+                                  onClick={() => confirmDeleteProduct(p.id)}
+                                >
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                                    <path d="M10 11v6M14 11v6" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </section>
 
@@ -1448,10 +1530,10 @@ const filteredProducts = products.filter((p) =>
                               m.time === 'اکنون'
                                 ? 'امروز'
                                 : m.rawTime
-                                ? formatRelativeTime(m.rawTime).includes('پیش') || formatRelativeTime(m.rawTime) === 'دیروز'
-                                  ? formatRelativeTime(m.rawTime)
-                                  : 'امروز'
-                                : 'امروز';
+                                  ? formatRelativeTime(m.rawTime).includes('پیش') || formatRelativeTime(m.rawTime) === 'دیروز'
+                                    ? formatRelativeTime(m.rawTime)
+                                    : 'امروز'
+                                  : 'امروز';
                             const showDivider = dayLabel !== lastDayLabel;
                             lastDayLabel = dayLabel;
                             return (
@@ -1620,56 +1702,56 @@ const filteredProducts = products.filter((p) =>
                   فعال‌سازی تبلیغ
                 </button>
               </div>
-     <div className="stat-grid">
-  <div className="card stat-card">
-    <div className="si-icon" style={{ background: 'var(--primary)' }}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
-        <circle cx="12" cy="12" r="3" />
-      </svg>
-    </div>
-    <div className="si-num">{(reports.monthlyViews || 0).toLocaleString('fa-IR')}</div>
-    <div className="si-label">بازدید ماهانه</div>
-    <div className="si-trend up">از دیتابیس</div>
-  </div>
+              <div className="stat-grid">
+                <div className="card stat-card">
+                  <div className="si-icon" style={{ background: 'var(--primary)' }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  </div>
+                  <div className="si-num">{(reports.monthlyViews || 0).toLocaleString('fa-IR')}</div>
+                  <div className="si-label">بازدید ماهانه</div>
+                  <div className="si-trend up">از دیتابیس</div>
+                </div>
 
-  <div className="card stat-card">
-    <div className="si-icon" style={{ background: '#0EA5E9' }}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-        <circle cx="12" cy="7" r="4" />
-      </svg>
-    </div>
-    <div className="si-num">{(reports.profileViews || 0).toLocaleString('fa-IR')}</div>
-    <div className="si-label">بازدید پروفایل</div>
-    <div className="si-trend up">از دیتابیس</div>
-  </div>
+                <div className="card stat-card">
+                  <div className="si-icon" style={{ background: '#0EA5E9' }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </div>
+                  <div className="si-num">{(reports.profileViews || 0).toLocaleString('fa-IR')}</div>
+                  <div className="si-label">بازدید پروفایل</div>
+                  <div className="si-trend up">از دیتابیس</div>
+                </div>
 
-  <div className="card stat-card">
-    <div className="si-icon" style={{ background: 'var(--accent)' }}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M20 7 12 3 4 7l8 4 8-4Z" />
-        <path d="M4 7v10l8 4 8-4V7" />
-      </svg>
-    </div>
-    <div className="si-num">{(reports.productClicks || 0).toLocaleString('fa-IR')}</div>
-    <div className="si-label">کلیک روی محصولات</div>
-    <div className="si-trend up">به‌زودی</div>
-  </div>
+                <div className="card stat-card">
+                  <div className="si-icon" style={{ background: 'var(--accent)' }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M20 7 12 3 4 7l8 4 8-4Z" />
+                      <path d="M4 7v10l8 4 8-4V7" />
+                    </svg>
+                  </div>
+                  <div className="si-num">{(reports.productClicks || 0).toLocaleString('fa-IR')}</div>
+                  <div className="si-label">کلیک روی محصولات</div>
+                  <div className="si-trend up">به‌زودی</div>
+                </div>
 
-  <div className="card stat-card">
-    <div className="si-icon" style={{ background: 'var(--ok)' }}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-      </svg>
-    </div>
-    <div className="si-num">{(reports.visibilityScore || 0).toLocaleString('fa-IR')}٪</div>
-    <div className="si-label">امتیاز دیده‌شدن</div>
-    <div className="si-trend up">
-      {(reports.visibilityScore || 0) >= 70 ? 'وضعیت خوب' : 'قابل بهبود'}
-    </div>
-  </div>
-</div>
+                <div className="card stat-card">
+                  <div className="si-icon" style={{ background: 'var(--ok)' }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                    </svg>
+                  </div>
+                  <div className="si-num">{(reports.visibilityScore || 0).toLocaleString('fa-IR')}٪</div>
+                  <div className="si-label">امتیاز دیده‌شدن</div>
+                  <div className="si-trend up">
+                    {(reports.visibilityScore || 0) >= 70 ? 'وضعیت خوب' : 'قابل بهبود'}
+                  </div>
+                </div>
+              </div>
               <div className="card" style={{ padding: 22, marginBottom: 18 }}>
                 <div className="section-head" style={{ marginTop: 0, marginBottom: 18 }}>
                   <div>
@@ -1692,77 +1774,69 @@ const filteredProducts = products.filter((p) =>
                   </div>
                 </div>
                 <div className="subscription-grid">
-                  <div className="plan-card">
-                    <div className="plan-top">
-                      <div>
-                        <span className="plan-label">اشتراک پایه</span>
-                        <h4>شروع</h4>
-                      </div>
-                      <span className="status-pill processing">
-                        <span className="d" />
-                        پیشنهادی برای شروع
-                      </span>
-                    </div>
-                    <div className="plan-price">
-                      <strong>{prices.start}</strong>
-                      <span>{prices.unit}</span>
-                    </div>
-                    <div className="plan-features">
-                      <div>✓ نمایش بهتر در نتایج جستجو</div>
-                      <div>✓ آمار بازدید و عملکرد</div>
-                      <div>✓ پشتیبانی پیام‌ها</div>
-                    </div>
-                    <button className="ghost-btn plan-btn" onClick={() => toast('اشتراک «شروع» انتخاب شد')}>
-                      انتخاب اشتراک
-                    </button>
-                  </div>
-                  <div className="plan-card featured">
-                    <div className="plan-top">
-                      <div>
-                        <span className="plan-label">اشتراک حرفه‌ای</span>
-                        <h4>رشد</h4>
-                      </div>
-                      <span className="featured-badge">پیشنهاد ویژه</span>
-                    </div>
-                    <div className="plan-price">
-                      <strong>{prices.growth}</strong>
-                      <span>{prices.unit}</span>
-                    </div>
-                    <div className="plan-features">
-                      <div>✓ جایگاه ویژه در نتایج</div>
-                      <div>✓ تبلیغ و افزایش دیده‌شدن</div>
-                      <div>✓ آمار پیشرفته رشد</div>
-                      <div>✓ نمایش ویژه محصولات</div>
-                    </div>
-                    <button className="primary-btn plan-btn" onClick={() => toast('اشتراک «رشد» فعال شد')}>
-                      فعال‌سازی اشتراک
-                    </button>
-                  </div>
-                  <div className="plan-card">
-                    <div className="plan-top">
-                      <div>
-                        <span className="plan-label">اشتراک حرفه‌ای پلاس</span>
-                        <h4>رشد پلاس</h4>
-                      </div>
-                      <span className="status-pill processing">
-                        <span className="d" />
-                        کامل‌ترین
-                      </span>
-                    </div>
-                    <div className="plan-price">
-                      <strong>{prices.plus}</strong>
-                      <span>{prices.unit}</span>
-                    </div>
-                    <div className="plan-features">
-                      <div>✓ همه امکانات اشتراک رشد</div>
-                      <div>✓ تبلیغات گسترده‌تر</div>
-                      <div>✓ اولویت نمایش در دسته‌بندی</div>
-                      <div>✓ پشتیبانی اختصاصی</div>
-                    </div>
-                    <button className="ghost-btn plan-btn" onClick={() => toast('اشتراک «رشد پلاس» انتخاب شد')}>
-                      انتخاب اشتراک
-                    </button>
-                  </div>
+                  <SubscriptionCard
+                    plan={{
+                      key: 'basic',
+                      name: 'اشتراک پایه',
+                      price: 0,
+                      unit: prices.unit,
+                      duration: planMode === 'monthly' ? 'ماهانه' : 'سالانه',
+                      features: [
+                        'اضافه کردن ۲۰ تصویر از محصولات',
+                        'نمایش در نتایج جستجو',
+                        'دریافت تماس و کلیک کاربران',
+                        'پشتیبانی عادی',
+                        'تعرفه عادی کلیک و تماس',
+                      ],
+                    }}
+                    isActive={currentPlanKey === 'basic'}
+                    onSubscribe={handleSubscribe}
+                  />
+
+                  <SubscriptionCard
+                    plan={{
+                      key: 'pro',
+                      name: 'اشتراک حرفه‌ای',
+                      price: Number(getPlan('pro')?.price || 0),
+                      unit: prices.unit,
+                      duration: planMode === 'monthly' ? 'ماهانه' : 'سالانه',
+                      features: [
+                        'همه امکانات اشتراک پایه',
+                        'اضافه کردن ۴۰ تصویر از محصولات',
+                        'مشاهده تعداد بازدید از پروفایل',
+                        'مشاهده تعداد کلیک روی شماره تلفن',
+                        'مشاهده تعداد کلیک روی سایت',
+                        'نمایش در جایگاه‌های بالاتر نتایج جستجو',
+                        'امکان تبلیغ داخل اپ',
+                        'پشتیبانی با اولویت بالاتر',
+                        '۲۰٪ تخفیف در هزینه کلیک و تماس',
+                      ],
+                    }}
+                    isActive={currentPlanKey === 'pro'}
+                    onSubscribe={handleSubscribe}
+                  />
+
+                  <SubscriptionCard
+                    plan={{
+                      key: 'pro_plus',
+                      name: 'اشتراک حرفه‌ای پلاس',
+                      price: Number(getPlan('pro_plus')?.price || 0),
+                      unit: prices.unit,
+                      duration: planMode === 'monthly' ? 'ماهانه' : 'سالانه',
+                      features: [
+                        'همه امکانات اشتراک حرفه‌ای',
+                        'اضافه کردن ۱۰۰ تصویر از محصولات',
+                        'بالاترین جایگاه در نتایج جستجو',
+                        'نمایش در بخش «پیشنهاد ما»',
+                        'پین کردن پروفایل در نتایج جستجو',
+                        'اولویت بالاتر در تبلیغات داخل اپ',
+                        'پشتیبانی VIP',
+                        '۴۰٪ تخفیف در هزینه کلیک و تماس',
+                      ],
+                    }}
+                    isActive={currentPlanKey === 'pro_plus'}
+                    onSubscribe={handleSubscribe}
+                  />
                 </div>
               </div>
               <div className="growth-layout">
@@ -1773,25 +1847,25 @@ const filteredProducts = products.filter((p) =>
                       <p>هفت روز اخیر (به‌زودی)</p>
                     </div>
                   </div>
-          <div className="growth-bars">
-  {(reports.weeklyViews && reports.weeklyViews.length > 0
-    ? reports.weeklyViews
-    : [
-        { day: 'شنبه', value: 0 },
-        { day: 'یکشنبه', value: 0 },
-        { day: 'دوشنبه', value: 0 },
-        { day: 'سه‌شنبه', value: 0 },
-        { day: 'چهارشنبه', value: 0 },
-        { day: 'پنجشنبه', value: 0 },
-        { day: 'جمعه', value: 0 },
-      ]
-  ).map((item) => (
-    <div className="growth-col" key={item.day}>
-      <div className="bar" style={{ height: `${item.value}%` }} />
-      <div className="bar-label">{item.day}</div>
-    </div>
-  ))}
-</div>
+                  <div className="growth-bars">
+                    {(reports.weeklyViews && reports.weeklyViews.length > 0
+                      ? reports.weeklyViews
+                      : [
+                        { day: 'شنبه', value: 0 },
+                        { day: 'یکشنبه', value: 0 },
+                        { day: 'دوشنبه', value: 0 },
+                        { day: 'سه‌شنبه', value: 0 },
+                        { day: 'چهارشنبه', value: 0 },
+                        { day: 'پنجشنبه', value: 0 },
+                        { day: 'جمعه', value: 0 },
+                      ]
+                    ).map((item) => (
+                      <div className="growth-col" key={item.day}>
+                        <div className="bar" style={{ height: `${item.value}%` }} />
+                        <div className="bar-label">{item.day}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <div className="card side-card">
                   <h3 style={{ fontSize: 14.5, fontWeight: 800, marginBottom: 14 }}>پیشنهادهای رشد</h3>
@@ -1918,10 +1992,10 @@ const filteredProducts = products.filter((p) =>
                     <div
                       key={s.id}
                       className={`shop-card${activeBusinessId === s.id ? ' active' : ''}`}
-            onClick={() => {
-  selectBusiness(s.id);   // به‌جای setActiveBusinessId(s.id)
-  toast(`«${s.name}» فعال شد`);
-}}
+                      onClick={() => {
+                        selectBusiness(s.id);   // به‌جای setActiveBusinessId(s.id)
+                        toast(`«${s.name}» فعال شد`);
+                      }}
                     >
                       <div className="sc-avatar" style={{ background: s.color }}>
                         {s.avatar}

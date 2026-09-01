@@ -2,6 +2,7 @@
 const prisma = require('../config/db');
 const { z } = require('zod');
 const { logActivity } = require('./activity.controller');
+const { getActivePlan } = require('../utils/subscriptionHelper');
 
 // ============================================
 // Validation Schemas
@@ -54,6 +55,16 @@ exports.createBusiness = async (req, res) => {
       },
       include: { category: true },
     });
+
+    if (req.files && req.files.length > 0) {
+  const plan = await getActivePlan(business.id);
+  const maxImages = plan?.max_images ?? 20;
+
+  if (req.files.length > maxImages) {
+    // تصاویر اضافی رو قبول نکن — فقط تا سقف مجاز
+    req.files = req.files.slice(0, maxImages);
+  }
+}
 
     if (req.files && req.files.length > 0) {
       const imageData = req.files.map((file, index) => ({
@@ -469,6 +480,11 @@ exports.getDashboardReports = async (req, res) => {
   try {
     const businessId = Number(req.params.businessId);
 
+    // چک دسترسی بر اساس اشتراک
+    const plan = await getActivePlan(businessId);
+    const allowViewStats = plan?.view_stats === true;
+    const allowClickStats = plan?.click_stats === true;
+
     const business = await prisma.business.findUnique({
       where: { id: businessId },
       select: {
@@ -483,13 +499,8 @@ exports.getDashboardReports = async (req, res) => {
       return res.status(404).json({ success: false, message: 'کسب‌وکار پیدا نشد' });
     }
 
-    const productsCount = await prisma.product.count({
-      where: { business_id: businessId },
-    });
-
-    const activeProducts = await prisma.product.count({
-      where: { business_id: businessId, active: true },
-    });
+    const productsCount = await prisma.product.count({ where: { business_id: businessId } });
+    const activeProducts = await prisma.product.count({ where: { business_id: businessId, active: true } });
 
     const reviews = await prisma.review.findMany({
       where: { business_id: businessId },
@@ -497,10 +508,9 @@ exports.getDashboardReports = async (req, res) => {
     });
 
     const reviewsCount = reviews.length;
-    const avgRating =
-      reviewsCount > 0
-        ? Number((reviews.reduce((s, r) => s + r.rating, 0) / reviewsCount).toFixed(1))
-        : 0;
+    const avgRating = reviewsCount > 0
+      ? Number((reviews.reduce((s, r) => s + r.rating, 0) / reviewsCount).toFixed(1))
+      : 0;
 
     const visibilityScore = Math.min(
       100,
@@ -516,25 +526,30 @@ exports.getDashboardReports = async (req, res) => {
     res.json({
       success: true,
       data: {
-        monthlyViews: business.views || 0,
-        profileViews: business.views || 0,
-        productClicks: 0,
-        visibilityScore,
-        callCount: business.call_count || 0,
-        routeCount: business.route_count || 0,
+        // آمار بازدید
+        monthlyViews: allowViewStats ? (business.views || 0) : null,
+        profileViews: allowViewStats ? (business.views || 0) : null,
+        visibilityScore: allowViewStats ? visibilityScore : null,
+
+        // آمار کلیک
+        productClicks: allowClickStats ? (business.call_count || 0) : null,
+        callCount: allowClickStats ? (business.call_count || 0) : null,
+        routeCount: allowClickStats ? (business.route_count || 0) : null,
+
+        // آمار عمومی
         productsCount,
         activeProducts,
         reviewsCount,
         avgRating,
-        weeklyViews: [
-          { day: 'شنبه', value: 45 },
-          { day: 'یکشنبه', value: 62 },
-          { day: 'دوشنبه', value: 54 },
-          { day: 'سه‌شنبه', value: 78 },
-          { day: 'چهارشنبه', value: 69 },
-          { day: 'پنجشنبه', value: 90 },
-          { day: 'جمعه', value: 82 },
-        ],
+
+        // اطلاعات پلن فعلی
+        plan: {
+          key: plan?.key || 'basic',
+          name: plan?.name || 'استارک پایه',
+          view_stats: allowViewStats,
+          click_stats: allowClickStats,
+          max_images: plan?.max_images ?? 20,
+        },
       },
     });
   } catch (error) {

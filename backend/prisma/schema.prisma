@@ -95,7 +95,8 @@ model Business {
   reviews          Review[]
   bookmarks   Bookmark[]
   viewHistory ViewHistory[]
-  activityLogs ActivityLog[]    
+  activityLogs ActivityLog[]
+  subscriptions    BusinessSubscription[] 
 
   @@index([user_id])
   @@index([category_id])
@@ -273,4 +274,57 @@ model ActivityLog {
   @@index([user_id])
   @@index([created_at])
   @@map("activity_logs")
+}
+
+// ============================================
+// پلن‌های اشتراک
+// ============================================
+model SubscriptionPlan {
+  id                Int      @id @default(autoincrement())
+  key               String   // "basic" | "pro" | "pro_plus"
+  name              String   // "اشتراک پایه" | "حرفه‌ای" | "حرفه‌ای پلاس"
+  billing_cycle     String   // "monthly" | "yearly"
+  price             Int      @default(0)   // به تومان
+  duration_days     Int      // 30 یا 365
+  max_images        Int
+  search_priority   Int      @default(0)
+  can_pin           Boolean  @default(false)
+  show_in_suggested Boolean  @default(false)
+  can_advertise     Boolean  @default(false)
+  ad_priority       Int      @default(0)
+  view_stats        Boolean  @default(false)
+  click_stats       Boolean  @default(false)
+  support_level     String   @default("normal") // normal | priority | vip
+  click_discount    Int      @default(0)        // 0 | 20 | 40
+  is_active         Boolean  @default(true)
+  created_at        DateTime @default(now())
+
+  subscriptions     BusinessSubscription[]
+
+  @@unique([key, billing_cycle])
+  @@map("subscription_plans")
+}
+
+// ============================================
+// اشتراک فعال هر کسب‌وکار
+// ============================================
+model BusinessSubscription {
+  id              Int       @id @default(autoincrement())
+  business_id     Int
+  plan_id         Int
+  status          String    @default("active") // active | expired | cancelled
+  starts_at       DateTime  @default(now())
+  expires_at      DateTime?
+  payment_ref     String?   // کد پیگیری پرداخت
+  is_auto_renew   Boolean   @default(false)
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  business        Business           @relation(fields: [business_id], references: [id], onDelete: Cascade)
+  plan            SubscriptionPlan   @relation(fields: [plan_id], references: [id])
+
+  @@index([business_id])
+  @@index([status])
+  @@index([expires_at])
+  @@map("business_subscriptions")
 }

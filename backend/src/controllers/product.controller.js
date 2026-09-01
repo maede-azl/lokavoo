@@ -1,4 +1,5 @@
 const prisma = require('../config/db');
+const { getActivePlan } = require('../utils/subscriptionHelper');
 
 // ایجاد محصول جدید
 exports.createProduct = async (req, res) => {
@@ -13,9 +14,17 @@ exports.createProduct = async (req, res) => {
       });
     }
 
-    let imageUrl = null;
+    // ===== چک محدودیت تعداد عکس =====
     if (req.file) {
-      imageUrl = `businesses/${req.file.filename}`;
+      const { canUploadMoreImages } = require('../utils/subscriptionHelper');
+      const canUpload = await canUploadMoreImages(businessId, 1);
+
+      if (!canUpload) {
+        return res.status(403).json({
+          success: false,
+          message: "شما به سقف تعداد عکس مجاز در پلن فعلی رسیده‌اید. لطفاً پلن خود را ارتقا دهید."
+        });
+      }
     }
 
     const product = await prisma.product.create({
@@ -28,7 +37,7 @@ exports.createProduct = async (req, res) => {
         discount: Number(discount),
         color: "#2547E8",
         active: true,
-    image_url: req.file ? `/uploads/businesses/${req.file.filename}` : null
+        image_url: req.file ? `/uploads/businesses/${req.file.filename}` : null
       },
     });
 
@@ -126,6 +135,33 @@ exports.updateProduct = async (req, res) => {
       });
     }
 
+    // پیدا کردن محصول برای گرفتن business_id
+    const existingProduct = await prisma.product.findUnique({
+      where: { id: productId },
+      select: { business_id: true, image_url: true }
+    });
+
+    if (!existingProduct) {
+      return res.status(404).json({
+        success: false,
+        message: "محصول پیدا نشد"
+      });
+    }
+
+    // ===== چک محدودیت تعداد عکس =====
+    // فقط وقتی عکس جدید آپلود شده و قبلاً عکس نداشته
+    if (req.file && !existingProduct.image_url) {
+      const { canUploadMoreImages } = require('../utils/subscriptionHelper');
+      const canUpload = await canUploadMoreImages(existingProduct.business_id, 1);
+
+      if (!canUpload) {
+        return res.status(403).json({
+          success: false,
+          message: "شما به سقف تعداد عکس مجاز در پلن فعلی رسیده‌اید. لطفاً پلن خود را ارتقا دهید."
+        });
+      }
+    }
+
     const data = {};
     if (name !== undefined) data.name = name;
     if (category !== undefined) data.category = category;
@@ -134,9 +170,9 @@ exports.updateProduct = async (req, res) => {
     if (discount !== undefined) data.discount = Number(discount);
     if (active !== undefined) data.active = active === true || active === 'true' || active === '1';
 
-  if (req.file) {
-  data.image_url = `/uploads/businesses/${req.file.filename}`;
-}
+    if (req.file) {
+      data.image_url = `/uploads/businesses/${req.file.filename}`;
+    }
 
     const product = await prisma.product.update({
       where: { id: productId },
