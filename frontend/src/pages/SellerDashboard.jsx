@@ -287,8 +287,8 @@ export default function SellerDashboard() {
   }, [activeBusinessId]);
 
   useEffect(() => {
-  loadPlans();
-}, []);
+    loadPlans();
+  }, []);
 
   function go(page) {
     setActivePage(page);
@@ -563,53 +563,51 @@ export default function SellerDashboard() {
     }
   };
   const loadMySubscription = async (businessId) => {
-    if (!businessId) {
-      setCurrentSubscription(null);
-      return;
-    }
-    try {
-      const res = await api.subscription.getMySubscription(businessId);
-      setCurrentSubscription(res?.data || null);
-    } catch (err) {
-      console.error('خطا در دریافت اشتراک فعلی:', err);
-      setCurrentSubscription(null);
-    }
-  };
-
- const handleSubscribe = async (planKey) => {
-  if (!activeBusinessId) {
-    toast('ابتدا یک مغازه انتخاب کنید');
-    return;
-  }
-
-  const plan = getPlan(planKey);
-  if (!plan) {
-    toast('پلن پیدا نشد');
-    return;
-  }
-
-  // نام‌های تمیز برای نمایش
-  const displayNames = {
-    basic: 'پایه',
-    pro: 'حرفه‌ای',
-    pro_plus: 'حرفه‌ای پلاس',
-  };
-
-  const displayName = displayNames[planKey] || plan.name;
-
   try {
-    setSubscribing(true);
-
-    const res = await api.subscription.subscribe(activeBusinessId, plan.id);
-    setCurrentSubscription(res?.data || { plan: { key: planKey }, status: 'active' });
-    toast(`اشتراک «${displayName}» با موفقیت فعال شد`);
-  } catch (err) {
-    console.error(err);
-    toast(err.message || 'خطا در فعال‌سازی اشتراک');
-  } finally {
-    setSubscribing(false);
+    const res = await api.subscription.getMySubscription(businessId);
+    console.log('=== پاسخ کامل getMySubscription ===');
+    console.log(res);
+    console.log('data:', res.data);
+    setCurrentSubscription(res.data);
+  } catch (error) {
+    console.error('خطا در loadMySubscription:', error);
   }
 };
+
+  const handleSubscribe = async (planKey) => {
+    if (!activeBusinessId) {
+      toast('ابتدا یک مغازه انتخاب کنید');
+      return;
+    }
+
+    const plan = getPlan(planKey);
+    if (!plan) {
+      toast('پلن پیدا نشد');
+      return;
+    }
+
+    // نام‌های تمیز برای نمایش
+    const displayNames = {
+      basic: 'پایه',
+      pro: 'حرفه‌ای',
+      pro_plus: 'حرفه‌ای پلاس',
+    };
+
+    const displayName = displayNames[planKey] || plan.name;
+
+    try {
+      setSubscribing(true);
+
+      const res = await api.subscription.subscribe(activeBusinessId, plan.id);
+      setCurrentSubscription(res?.data || { plan: { key: planKey }, status: 'active' });
+      toast(`اشتراک «${displayName}» با موفقیت فعال شد`);
+    } catch (err) {
+      console.error(err);
+      toast(err.message || 'خطا در فعال‌سازی اشتراک');
+    } finally {
+      setSubscribing(false);
+    }
+  };
 
   // ---------- پیام‌ها ----------
   const loadConversations = async (businessId) => {
@@ -917,7 +915,7 @@ export default function SellerDashboard() {
     plans.find((p) => p.key === key && p.billing_cycle === planMode);
 
   console.log('plans from state:', plans);
-console.log('pro plan found:', getPlan('pro'));
+  console.log('pro plan found:', getPlan('pro'));
 
   const prices = {
     start: formatPrice(getPlan('basic')?.price ?? 0),
@@ -1698,7 +1696,7 @@ console.log('pro plan found:', getPlan('pro'));
                   <h2>رشد و تبلیغات</h2>
                   <p>عملکرد حضور مغازه در لوکاوو و ابزارهای افزایش دیده‌شدن</p>
                 </div>
-                <button className="primary-btn" onClick={() => toast('درخواست تبلیغ ثبت شد')}>
+                <button className="primary-btn" onClick={() => toast('امکانات تبلیغات بر اساس اشتراک شما فعال می‌شود')}>
                   فعال‌سازی تبلیغ
                 </button>
               </div>
@@ -1773,6 +1771,100 @@ console.log('pro plan found:', getPlan('pro'));
                     </button>
                   </div>
                 </div>
+
+                {/* ========== وضعیت اشتراک فعلی ========== */}
+                {currentSubscription && (
+                  <div className="current-subscription-box" style={{
+                    background: currentSubscription.is_expired ? '#fef2f2' : '#f0fdf4',
+                    border: `1px solid ${currentSubscription.is_expired ? '#fecaca' : '#bbf7d0'}`,
+                    borderRadius: '12px',
+                    padding: '16px 20px',
+                    marginBottom: '24px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                  }}>
+                    <div>
+                      <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>
+                        اشتراک فعلی
+                      </div>
+                      <div style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>
+                        {currentSubscription.plan?.name || currentSubscription.plan?.key || 'پایه'}
+                      </div>
+
+                      {currentSubscription.expires_at ? (
+                        <div style={{ marginTop: '6px', fontSize: '14px', color: '#475569', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                          <span>
+                            تاریخ انقضا: {new Date(currentSubscription.expires_at).toLocaleDateString('fa-IR')}
+                          </span>
+
+                          {currentSubscription.days_remaining !== null && (
+                            <span style={{
+                              color: currentSubscription.days_remaining <= 7 ? '#dc2626' : '#16a34a',
+                              fontWeight: '600',
+                              background: currentSubscription.days_remaining <= 7 ? '#fef2f2' : '#f0fdf4',
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              fontSize: '13px'
+                            }}>
+                              {currentSubscription.is_expired
+                                ? 'منقضی شده'
+                                : `${currentSubscription.days_remaining} روز باقی‌مانده`}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div style={{ marginTop: '6px', fontSize: '14px', color: '#64748b' }}>
+                          اشتراک رایگان پایه (بدون تاریخ انقضا)
+                        </div>
+                      )}
+                    </div>
+
+                    {/* دکمه تمدید */}
+                    {!currentSubscription.is_default && (
+                      <button
+                        onClick={async () => {
+                          console.log('در حال تمدید...', {
+                            businessId: activeBusinessId,
+                            planId: currentSubscription?.plan?.id
+                          });
+
+                          if (!currentSubscription?.plan?.id || !activeBusinessId) {
+                            alert('اطلاعات اشتراک ناقص است');
+                            return;
+                          }
+
+                          try {
+                            await api.subscription.subscribe(
+                              activeBusinessId,
+                              currentSubscription.plan.id
+                            );
+
+                            await loadMySubscription(activeBusinessId);
+                            alert('اشتراک با موفقیت تمدید شد ✅');
+                          } catch (error) {
+                            console.error('خطای تمدید:', error);
+                            alert(error.message || 'خطا در تمدید اشتراک');
+                          }
+                        }}
+                        style={{
+                          background: currentSubscription.is_expired ? '#dc2626' : '#2563eb',
+                          color: 'white',
+                          border: 'none',
+                          padding: '10px 18px',
+                          borderRadius: '8px',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {currentSubscription.is_expired ? 'تمدید فوری' : 'تمدید اشتراک'}
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 <div className="subscription-grid">
                   <SubscriptionCard
                     plan={{
@@ -1781,6 +1873,7 @@ console.log('pro plan found:', getPlan('pro'));
                       price: 0,
                       unit: prices.unit,
                       duration: planMode === 'monthly' ? 'ماهانه' : 'سالانه',
+                      expires_at: currentSubscription?.expires_at,
                       features: [
                         'اضافه کردن ۲۰ تصویر از محصولات',
                         'نمایش در نتایج جستجو',
@@ -1800,6 +1893,7 @@ console.log('pro plan found:', getPlan('pro'));
                       price: Number(getPlan('pro')?.price || 0),
                       unit: prices.unit,
                       duration: planMode === 'monthly' ? 'ماهانه' : 'سالانه',
+                      expires_at: currentSubscription?.expires_at,
                       features: [
                         'همه امکانات اشتراک پایه',
                         'اضافه کردن ۴۰ تصویر از محصولات',
@@ -1823,6 +1917,7 @@ console.log('pro plan found:', getPlan('pro'));
                       price: Number(getPlan('pro_plus')?.price || 0),
                       unit: prices.unit,
                       duration: planMode === 'monthly' ? 'ماهانه' : 'سالانه',
+                      expires_at: currentSubscription?.expires_at,
                       features: [
                         'همه امکانات اشتراک حرفه‌ای',
                         'اضافه کردن ۱۰۰ تصویر از محصولات',
@@ -1839,6 +1934,7 @@ console.log('pro plan found:', getPlan('pro'));
                   />
                 </div>
               </div>
+
               <div className="growth-layout">
                 <div className="card chart-card">
                   <div className="section-head" style={{ marginTop: 0 }}>

@@ -38,7 +38,7 @@ exports.getMySubscription = async (req, res) => {
       orderBy: { created_at: 'desc' },
     });
 
-    // اگر اشتراک فعال نداشت → پلن پایه رو برگردون
+    // اگر اشتراک فعال نداشت → پلن پایه
     if (!subscription) {
       const basicPlan = await prisma.subscriptionPlan.findFirst({
         where: { key: 'basic', billing_cycle: 'monthly' },
@@ -52,11 +52,37 @@ exports.getMySubscription = async (req, res) => {
           status: 'active',
           starts_at: null,
           expires_at: null,
+          days_remaining: null,
+          is_expired: false,
         },
       });
     }
 
-    res.json({ success: true, data: subscription });
+    // محاسبه روز باقی‌مانده
+    const now = new Date();
+    const expiresAt = subscription.expires_at ? new Date(subscription.expires_at) : null;
+    
+    let daysRemaining = null;
+    let isExpired = false;
+
+    if (expiresAt) {
+      const diffTime = expiresAt.getTime() - now.getTime();
+      daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (daysRemaining <= 0) {
+        daysRemaining = 0;
+        isExpired = true;
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...subscription,
+        days_remaining: daysRemaining,
+        is_expired: isExpired,
+      },
+    });
   } catch (error) {
     console.error('getMySubscription error:', error);
     res.status(500).json({ success: false, message: 'خطا در دریافت اشتراک' });

@@ -9,7 +9,7 @@ const SubscriptionCard = ({
   isFeatured = false,
   isBest = false
 }) => {
-  const { key, name, price, unit, duration, features, badge, status } = plan;
+  const { key, name, price, unit, duration, features, badge, status, expires_at } = plan;
 
   return (
     <div className={`plan-card ${isActive ? 'active' : ''}`}>
