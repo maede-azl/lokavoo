@@ -1643,123 +1643,89 @@ exports.updateBusiness = async (req, res) => {
 };
 
 // ============================================
-
 // سرچ پیشرفته کسب‌وکارها
-
 // ============================================
 
 exports.searchBusinesses = async (req, res) => {
-
   try {
-
     const {
-
       q = '',
-
       category = 'all',
-
       city = '',
-
       openOnly = 'false',
-
       minRate = 0,
-
       maxDist = 99,
-
       sort = 'relevance',
-
       lat,
-
       lng,
-
       page = 1,
-
       limit = 50,
-
     } = req.query;
 
     const where = {
-
       status: 'approved',
-
     };
 
     if (q.trim()) {
-
       where.OR = [
-
         {
-
           name: {
-
             contains: q.trim(),
-
             mode: 'insensitive',
-
           },
-
         },
-
         {
-
           description: {
-
             contains: q.trim(),
-
             mode: 'insensitive',
-
           },
-
         },
-
         {
-
           address: {
-
             contains: q.trim(),
-
             mode: 'insensitive',
-
           },
-
         },
-
       ];
-
     }
 
     if (category && category !== 'all') {
-
       const cat = await prisma.category.findUnique({
-
         where: {
-
           key_name: category,
-
         },
-
       });
 
       if (cat) {
-
         where.category_id = cat.id;
-
       }
-
     }
 
+    // ---------- فیلتر شهر با پشتیبانی از نیم‌فاصله و فاصله معمولی ----------
     const cityValue = city.trim();
 
     if (cityValue) {
+      // نرمال‌سازی: نیم‌فاصله (ZWNJ) رو به فاصله معمولی تبدیل می‌کنیم
+      const normalize = (str) =>
+        str
+          .replace(/\u200c/g, ' ') // نیم‌فاصله → فاصله
+          .replace(/\s+/g, ' ')
+          .trim();
 
-      // اولویت با فیلد ساخت‌یافته‌ی city است (دقیق‌تر)؛ برای کسب‌وکارهای قدیمی
-      // که هنوز city ساخت‌یافته ندارن، به آدرس متنی هم بازگشت می‌کنیم.
-      // این فیلتر باید با فیلتر متن جستجو (q) به‌صورت AND ترکیب بشه، نه OR —
-      // پس اگه قبلاً where.OR برای q ست شده، اونو داخل AND می‌بریم.
+      const normalized = normalize(cityValue);
+      const withZwnj = cityValue.replace(/\s+/g, '\u200c'); // نسخه با نیم‌فاصله
+
       const cityCondition = {
         OR: [
+          // تطابق روی فیلد city
           { city: { equals: cityValue, mode: 'insensitive' } },
+          { city: { equals: normalized, mode: 'insensitive' } },
+          { city: { equals: withZwnj, mode: 'insensitive' } },
+
+          // جستجو داخل آدرس (برای کسب‌وکارهای قدیمی)
           { address: { contains: cityValue, mode: 'insensitive' } },
+          { address: { contains: normalized, mode: 'insensitive' } },
+          { address: { contains: withZwnj, mode: 'insensitive' } },
         ],
       };
 
@@ -1770,283 +1736,166 @@ exports.searchBusinesses = async (req, res) => {
       } else {
         where.AND = [...(where.AND || []), cityCondition];
       }
-
     }
+    // -------------------------------------------------------------------
 
     let businesses = await prisma.business.findMany({
-
       where,
-
       include: {
-
         category: true,
-
         images: {
-
           where: {
-
             is_primary: true,
-
           },
-
           take: 1,
-
         },
-
         reviews: {
-
           select: {
-
             rating: true,
-
           },
-
         },
-
       },
-
       orderBy: {
-
         created_at: 'desc',
-
       },
-
     });
 
     businesses = businesses.map((b) => {
-
       const visibleReviews = b.notif_review !== false ? b.reviews : [];
-
       const reviewsCount = visibleReviews.length;
 
       const avgRating =
-
         reviewsCount > 0
-
           ? Number(
-
               (
-
                 visibleReviews.reduce((sum, r) => sum + r.rating, 0) /
-
                 reviewsCount
-
               ).toFixed(1)
-
             )
-
           : 0;
 
       let isOpen = false;
 
       if (b.opening_time && b.closing_time) {
-
         const now = new Date();
-
         const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
         const open = new Date(b.opening_time);
-
         const close = new Date(b.closing_time);
 
         const openMinutes = open.getHours() * 60 + open.getMinutes();
-
         const closeMinutes = close.getHours() * 60 + close.getMinutes();
 
         if (closeMinutes > openMinutes) {
-
           isOpen =
-
             currentMinutes >= openMinutes && currentMinutes < closeMinutes;
-
         } else {
-
+          // شب‌کاری (مثلاً ۲۲ تا ۰۶)
           isOpen =
-
             currentMinutes >= openMinutes || currentMinutes < closeMinutes;
-
         }
-
       }
 
       let distance = null;
 
       if (
-
         lat !== undefined &&
-
         lng !== undefined &&
-
         b.latitude !== null &&
-
         b.longitude !== null
-
       ) {
-
         const R = 6371;
-
         const dLat =
-
           ((Number(b.latitude) - Number(lat)) * Math.PI) / 180;
-
         const dLon =
-
           ((Number(b.longitude) - Number(lng)) * Math.PI) / 180;
 
         const a =
-
           Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-
           Math.cos((Number(lat) * Math.PI) / 180) *
-
             Math.cos((Number(b.latitude) * Math.PI) / 180) *
-
             Math.sin(dLon / 2) *
-
             Math.sin(dLon / 2);
 
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
         distance = Number((R * c).toFixed(2));
-
       }
 
       const { reviews, ...rest } = b;
 
       return {
-
         ...rest,
-
         reviewsCount,
-
         avgRating,
-
         isOpen,
-
         distance,
-
         open: isOpen,
-
         rating: avgRating,
-
         dist: distance ?? 99,
-
         verified: true,
-
         amenities: [
-
           ...(b.delivery_enabled ? ['ارسال'] : []),
-
           ...(b.pickup_enabled ? ['کارتی'] : []),
-
         ],
-
         sub: b.category?.name || '',
-
         cat: b.category?.key_name || '',
-
         ribbon: null,
-
         addr: b.address || '',
-
       };
-
     });
 
     if (Number(minRate) > 0) {
-
       businesses = businesses.filter((b) => b.avgRating >= Number(minRate));
-
     }
 
     if (openOnly === 'true') {
-
       businesses = businesses.filter((b) => b.isOpen);
-
     }
 
     if (
-
       Number(maxDist) < 99 &&
-
       lat !== undefined &&
-
       lng !== undefined
-
     ) {
-
       businesses = businesses.filter(
-
         (b) => b.distance !== null && b.distance <= Number(maxDist)
-
       );
-
     }
 
     if (sort === 'rating') {
-
       businesses.sort(
-
         (a, b) =>
-
           b.avgRating - a.avgRating || b.reviewsCount - a.reviewsCount
-
       );
-
     } else if (sort === 'dist' && lat !== undefined && lng !== undefined) {
-
       businesses.sort(
-
         (a, b) => (a.distance ?? 999) - (b.distance ?? 999)
-
       );
-
     } else if (sort === 'new') {
-
       businesses.sort(
-
         (a, b) => new Date(b.created_at) - new Date(a.created_at)
-
       );
-
     }
 
     const pageNumber = Math.max(1, Number(page) || 1);
-
     const limitNumber = Math.max(1, Number(limit) || 50);
-
     const start = (pageNumber - 1) * limitNumber;
-
     const paginated = businesses.slice(start, start + limitNumber);
 
     res.json({
-
       success: true,
-
       total: businesses.length,
-
       page: pageNumber,
-
       limit: limitNumber,
-
       data: paginated,
-
     });
-
   } catch (error) {
-
     console.error('SEARCH BUSINESSES ERROR:', error);
-
     res.status(500).json({
-
       success: false,
-
       message: 'خطای سرور',
-
     });
-
   }
-
 };
 
 // ============================================
