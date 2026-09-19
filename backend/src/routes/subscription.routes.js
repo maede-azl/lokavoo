@@ -1,15 +1,18 @@
+//subscription.routes
 const express = require('express');
 const router = express.Router();
-const subscriptionController = require('../controllers/subscription.controller');
-const authMiddleware = require('../middlewares/auth.middleware');
+
+const protect = require('../middlewares/auth.middleware');
+const checkBusinessOwner = require('../middlewares/checkBusinessOwner');
+const subscription = require('../controllers/subscription.controller');
 
 // لیست پلن‌ها (عمومی)
-router.get('/plans', subscriptionController.getPlans);
+router.get('/plans', subscription.getPlans);
 
-// اشتراک فعلی یک کسب‌وکار (نیاز به لاگین)
-router.get('/my/:businessId', authMiddleware, subscriptionController.getMySubscription);
+// اشتراک فعلی یک کسب‌وکار
+router.get('/my/:businessId', protect, checkBusinessOwner, subscription.getMySubscription);
 
-// خرید / فعال‌سازی اشتراک (نیاز به لاگین)
-router.post('/subscribe', authMiddleware, subscriptionController.subscribe);
+// خرید/فعال‌سازی اشتراک
+router.post('/:businessId/subscribe', protect, checkBusinessOwner, subscription.subscribe);
 
 module.exports = router;

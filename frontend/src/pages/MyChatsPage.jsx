@@ -9,10 +9,27 @@ import logoBlack from "../assets/locavo-logo-black.png";
 import logoWhite from "../assets/locavo-logo-white.png";
 import "./MyChatsPage.css";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 const PALETTE = ["#2547E8", "#0D9488", "#EC4899", "#B45309", "#7C3AED", "#0891B2"];
 const colorFor = (id) => PALETTE[id % PALETTE.length];
 const initials = (name) => (name || "؟").trim().split(" ")[0].slice(0, 2);
+
+// اگر متن پیام به‌صورت خراب (هر حرف در یک خط جدا) ذخیره/دریافت شده باشد،
+// این تابع آن را به یک متن یکپارچه و سالم تبدیل می‌کند.
+function normalizeMessageText(raw) {
+  if (Array.isArray(raw)) return raw.join("");
+  if (typeof raw !== "string") return raw ?? "";
+
+  const lines = raw.split("\n");
+  const looksBroken =
+    lines.length > 1 && lines.every((line) => line.trim().length <= 1);
+
+  if (looksBroken) {
+    return lines.join("").trim();
+  }
+
+  return raw;
+}
 
 const getToken = () => localStorage.getItem("token");
 const getAuthUser = () => {
@@ -96,6 +113,8 @@ export default function MyChatsPage() {
   const toastTimerRef = useRef(null);
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
+  const lastMsgCountRef = useRef(0);
+  const lastActiveConvoRef = useRef(null);
 
   // محافظت
   useEffect(() => {
@@ -154,9 +173,9 @@ export default function MyChatsPage() {
   };
 
   // ---------- لود گفتگوها از API ----------
-  const loadConversations = async (preferId = null) => {
+  const loadConversations = async (preferId = null, silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const res = await apiRequest("GET", "/messages/mine");
       const list = (res?.data || []).map((c) => ({
         id: c.id,
@@ -169,12 +188,14 @@ export default function MyChatsPage() {
         messages: (c.messages || []).map((m) => ({
           // مشتری: sender 'them' = پیام خودش (out) | 'me' = فروشنده (in)
           from: m.sender === "them" ? "out" : "in",
-          text: m.text,
+          text: normalizeMessageText(m.text),
           time: formatTime(m.created_at),
           rawTime: m.created_at,
         })),
       }));
       setConversations(list);
+
+      if (silent) return;
 
       const fromState = preferId || location.state?.conversationId;
       if (fromState && list.some((c) => c.id === fromState)) {
@@ -192,10 +213,12 @@ export default function MyChatsPage() {
       }
     } catch (err) {
       console.error(err);
-      showToast(err.message || "خطا در دریافت گفتگوها");
-      setConversations([]);
+      if (!silent) {
+        showToast(err.message || "خطا در دریافت گفتگوها");
+        setConversations([]);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -205,8 +228,30 @@ export default function MyChatsPage() {
     }
   }, [isLoggedIn]);
 
+  // هر ۱۵ ثانیه گفتگوها را در پس‌زمینه رفرش کن (فقط وقتی تب فعال است)
+  // تا کاربر بدون رفرش دستی، پیام‌های تازه‌ی فروشنده رو ببینه
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ block: "end" });
+    if (!isLoggedIn) return;
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        loadConversations(null, true);
+      }
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    const activeCount =
+      conversations.find((c) => c.id === activeConvoId)?.messages?.length || 0;
+    const convoChanged = lastActiveConvoRef.current !== activeConvoId;
+
+    if (convoChanged || activeCount !== lastMsgCountRef.current) {
+      lastActiveConvoRef.current = activeConvoId;
+      lastMsgCountRef.current = activeCount;
+      messagesEndRef.current?.scrollIntoView({ block: "end" });
+    }
   }, [activeConvoId, conversations]);
 
   useEffect(() => () => clearTimeout(toastTimerRef.current), []);
@@ -300,7 +345,7 @@ export default function MyChatsPage() {
 
   const goToShop = () => {
     if (activeConvo?.businessId) {
-      navigate(`/business/${activeConvo.businessId}`);
+      navigate(`/businesses/${activeConvo.businessId}`);
     } else {
       showToast("صفحه مغازه در دسترس نیست");
     }
@@ -432,9 +477,14 @@ export default function MyChatsPage() {
                 </div>
                 <div className="gc-convo-list">
                   {loading ? (
-                    <div className="gc-convo-empty">در حال بارگذاری...</div>
+                    <div className="gc-convo-empty"><span className="lk-spinner" />در حال بارگذاری...</div>
                   ) : filteredConversations.length === 0 ? (
                     <div className="gc-convo-empty">
+                      <div className="gc-convo-empty-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                        </svg>
+                      </div>
                       هنوز گفتگویی ندارید. از صفحه یک مغازه «پیام به فروشنده» را بزنید.
                     </div>
                   ) : (
@@ -682,9 +732,9 @@ export default function MyChatsPage() {
               <span>{toast.msg}</span>
             </div>
           </div>
-          <Footer />
         </div>
       </div>
+      <Footer />
       <BottomNav
         items={BOTTOM_NAV_ITEMS}
         activeNav={activeNav}

@@ -92,20 +92,11 @@ export function getSellerMenuItem(isLoggedIn, authUser, hasOwnBusiness) {
   if (authUser?.role === "user") return null;
 
   if (authUser?.role === "seller") {
-    if (hasOwnBusiness) {
-      return {
-        key: "seller",
-        label: "پنل فروشنده",
-        path: "/seller/dashboard",
-        icon: SELLER_PANEL_ICON,
-      };
-    }
-
     return {
-      key: "add-business",
-      label: "افزودن کسب‌وکار",
-      path: "/add-business",
-      icon: ADD_BUSINESS_ICON,
+      key: "seller",
+      label: "پنل فروشنده",
+      path: "/seller/dashboard",
+      icon: SELLER_PANEL_ICON,
     };
   }
 

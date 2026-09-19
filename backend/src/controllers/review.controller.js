@@ -113,7 +113,6 @@ exports.replyToReview = async (req, res) => {
       });
     }
 
-    // پیدا کردن نظر + چک مالکیت کسب‌وکار
     const review = await prisma.review.findUnique({
       where: { id: reviewId },
       include: {
@@ -125,7 +124,6 @@ exports.replyToReview = async (req, res) => {
       return res.status(404).json({ success: false, message: 'نظر پیدا نشد' });
     }
 
-    // فقط صاحب کسب‌وکار می‌تواند پاسخ دهد
     if (review.business.user_id !== userId) {
       return res.status(403).json({
         success: false,
@@ -151,6 +149,141 @@ exports.replyToReview = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+    res.status(500).json({ success: false, message: 'خطای سرور' });
+  }
+};   // ← این } باید اینجا بسته شود
+
+
+// ===== گرفتن نظرات خود کاربر =====
+exports.getMyReviews = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const reviews = await prisma.review.findMany({
+      where: { user_id: userId },
+      include: {
+        business: {
+          select: {
+            id: true,
+            name: true,
+            category: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
+    const data = reviews.map((r) => ({
+      id: r.id,
+      rating: r.rating,
+      comment: r.comment,
+      reply: r.reply,
+      repliedAt: r.replied_at,
+      createdAt: r.created_at,
+      businessId: r.business.id,
+      shopName: r.business.name,
+      tag: r.business.category?.name || '',
+      category: r.business.category?.name || '',
+    }));
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('GET MY REVIEWS ERROR:', error);
+    res.status(500).json({ success: false, message: 'خطای سرور' });
+  }
+};
+
+
+// ===== ویرایش نظر توسط صاحب نظر =====
+exports.updateReview = async (req, res) => {
+  try {
+    const reviewId = Number(req.params.reviewId);
+    const userId = req.user.id;
+    const { rating, comment } = req.body;
+
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'امتیاز باید بین ۱ تا ۵ باشد',
+      });
+    }
+
+    const review = await prisma.review.findUnique({
+      where: { id: reviewId },
+    });
+
+    if (!review) {
+      return res.status(404).json({ success: false, message: 'نظر پیدا نشد' });
+    }
+
+    if (review.user_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'شما اجازه ویرایش این نظر را ندارید',
+      });
+    }
+
+    const updated = await prisma.review.update({
+      where: { id: reviewId },
+      data: {
+        rating: Number(rating),
+        comment: comment?.trim() || null,
+      },
+      include: {
+        business: {
+          select: { id: true, name: true, category: { select: { name: true } } },
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'نظر با موفقیت ویرایش شد',
+      data: {
+        id: updated.id,
+        rating: updated.rating,
+        comment: updated.comment,
+        createdAt: updated.created_at,
+        businessId: updated.business.id,
+        shopName: updated.business.name,
+        tag: updated.business.category?.name || '',
+      },
+    });
+  } catch (error) {
+    console.error('UPDATE REVIEW ERROR:', error);
+    res.status(500).json({ success: false, message: 'خطای سرور' });
+  }
+};
+
+
+// ===== حذف نظر توسط صاحب نظر =====
+exports.deleteReview = async (req, res) => {
+  try {
+    const reviewId = Number(req.params.reviewId);
+    const userId = req.user.id;
+
+    const review = await prisma.review.findUnique({
+      where: { id: reviewId },
+    });
+
+    if (!review) {
+      return res.status(404).json({ success: false, message: 'نظر پیدا نشد' });
+    }
+
+    if (review.user_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'شما اجازه حذف این نظر را ندارید',
+      });
+    }
+
+    await prisma.review.delete({
+      where: { id: reviewId },
+    });
+
+    res.json({ success: true, message: 'نظر با موفقیت حذف شد' });
+  } catch (error) {
+    console.error('DELETE REVIEW ERROR:', error);
     res.status(500).json({ success: false, message: 'خطای سرور' });
   }
 };

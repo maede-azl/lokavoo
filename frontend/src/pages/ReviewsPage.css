@@ -1,0 +1,642 @@
+/* ============ REVIEWS PAGE ============ */
+/* از همون متغیرها و کلاس‌های مشترک (HomePage / Favorites) استفاده می‌کنه */
+
+.rev-content {
+    padding: 18px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    max-width: 1300px;
+    margin: 0 auto;
+  }
+  
+  /* ---- Header ---- */
+  .rev-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: nowrap;
+    padding: 14px 16px;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, var(--primary-tint), var(--surface) 60%);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  
+  .rev-header::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 90% -10%, var(--primary) 0%, transparent 55%);
+    opacity: 0.12;
+    pointer-events: none;
+  }
+  
+  .rev-header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    z-index: 1;
+    flex: 1;
+  }
+  
+  .rev-mobile-logo {
+    display: none;
+    height: 28px;
+    width: auto;
+    flex-shrink: 0;
+  }
+  
+  @media (max-width: 980px) {
+    .rev-mobile-logo {
+      display: block;
+    }
+  }
+  @media (max-width: 520px) {
+    .rev-mobile-logo {
+      height: 26px;
+    }
+  }
+  
+  .rev-theme-btn {
+    z-index: 1;
+    flex-shrink: 0;
+  }
+  
+  .rev-icon-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: 0.2s;
+    flex-shrink: 0;
+  }
+  
+  .rev-icon-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .rev-icon-btn:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+    transform: translateY(-1px);
+  }
+  
+  .rev-title-wrap {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+  }
+  
+  .rev-title {
+    font-size:var(--fs-md2);
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    letter-spacing: -0.2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .rev-title-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-tint);
+    color: var(--primary);
+    flex-shrink: 0;
+  }
+  
+  .rev-title-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+  
+  /* ---- Tabs ---- */
+  .rev-tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius:var(--radius-full);
+    padding: 4px;
+    width: fit-content;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  
+  .rev-tabs button {
+    border: none;
+    background: transparent;
+    padding: 9px 18px;
+    border-radius:var(--radius-full);
+    font-family: inherit;
+    font-size:var(--fs-sm);
+    font-weight: 700;
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: 0.2s;
+  }
+  
+  .rev-tabs button.active {
+    background: var(--primary);
+    color: #fff;
+    box-shadow: 0 4px 14px -4px var(--primary);
+  }
+  
+  /* ---- Grid ---- */
+  .rev-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  
+  /* ---- Card ---- */
+  .rev-card {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    transition: 0.25s;
+  }
+  
+  .rev-card:hover,
+  .rev-card:active {
+    transform: translateY(-3px);
+    box-shadow: 0 24px 40px -20px var(--glow-color, rgba(0, 0, 0, 0.35)),
+      0 0 0 1px var(--glow-color, transparent);
+  }
+  
+  /* دکمه‌های ویرایش و حذف */
+  .rev-actions {
+    position: absolute;
+    top: 10px;
+    inset-inline-end: 10px;
+    z-index: 3;
+    display: flex;
+    gap: 6px;
+  }
+  
+  .rev-action-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: 0.2s;
+    color: #fff;
+  }
+  
+  .rev-action-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+  
+  .rev-action-btn:hover {
+    background: rgba(0, 0, 0, 0.55);
+    transform: scale(1.06);
+  }
+  
+  .rev-action-btn.rev-danger:hover {
+    background: #e74c3c;
+  }
+  
+  /* مدیا و بدنه کارت (از کلاس‌های مشترک استفاده می‌کنه) */
+  .rev-card .shop-media {
+    height: 100px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  
+  .rev-card .shop-media::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.25), transparent 60%);
+  }
+  
+  .rev-card .shop-media svg {
+    width: 32px;
+    height: 32px;
+    color: #fff;
+    opacity: 0.95;
+    z-index: 1;
+  }
+  
+  .rev-card .shop-body {
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .rev-card .shop-name {
+    font-size:var(--fs-md);
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  
+  .rev-card .shop-name svg {
+    width: 14px;
+    height: 14px;
+    color: var(--primary);
+    flex-shrink: 0;
+  }
+  
+  .rev-card .shop-tag {
+    font-size:var(--fs-xs);
+    color: var(--text-muted);
+    margin-top: 3px;
+    font-weight: 600;
+  }
+  
+  .rev-product {
+    font-size:var(--fs-sm);
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+  
+  .rev-product span {
+    color: var(--text);
+    font-weight: 700;
+  }
+  
+  .rev-card .shop-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size:var(--fs-sm);
+    color: var(--text-muted);
+  }
+  
+  /* ستاره‌ها */
+  .rev-stars {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    color: var(--accent, #f5a623);
+  }
+  
+  .rev-stars svg {
+    width: 14px;
+    height: 14px;
+  }
+  
+  .fav-added-at {
+    font-size:var(--fs-2xs);
+    color: var(--text-muted);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  
+  .fav-added-at svg {
+    width: 12px;
+    height: 12px;
+  }
+  
+  /* متن نظر */
+  .rev-comment {
+    font-size:var(--fs-sm);
+    line-height: 1.7;
+    color: var(--text);
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .rev-card .shop-addr {
+    font-size:var(--fs-sm);
+    color: var(--text-muted);
+    line-height: 1.7;
+    border-top: 1px dashed var(--border);
+    padding-top: 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  
+  .rev-card .shop-addr svg {
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  
+  /* ---- Empty state ---- */
+  .rev-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 14px;
+    padding: 60px 20px;
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-lg);
+  }
+  
+  .rev-empty-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+  }
+  
+  .rev-empty-icon svg {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .rev-empty h3 {
+    font-size:var(--fs-md3);
+    font-weight: 800;
+  }
+  
+  .rev-empty p {
+    font-size:var(--fs-sm);
+    color: var(--text-muted);
+    max-width: 320px;
+    line-height: 1.8;
+  }
+  
+  .rev-empty-cta {
+    border: none;
+    background: var(--primary);
+    color: #fff;
+    font-family: inherit;
+    font-weight: 700;
+    font-size:var(--fs-sm);
+    padding: 11px 22px;
+    border-radius:var(--radius-full);
+    cursor: pointer;
+    box-shadow: 0 8px 18px -8px var(--primary);
+    transition: 0.2s;
+  }
+  
+  .rev-empty-cta:hover {
+    filter: brightness(1.08);
+  }
+  
+  /* ---- Responsive ---- */
+  @media (min-width: 760px) {
+    .rev-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    .rev-content {
+      padding: 26px 22px;
+    }
+  }
+  
+  @media (min-width: 980px) {
+    .rev-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .rev-content {
+      padding: 32px;
+      gap: 26px;
+    }
+  }
+  
+  /* ---- موبایل ---- */
+  @media (max-width: 520px) {
+    .rev-header {
+      padding: 12px 12px;
+      gap: 8px;
+    }
+    .rev-header-right {
+      gap: 6px;
+    }
+    .rev-title {
+      font-size:var(--fs-md);
+    }
+    .rev-title-icon {
+      width: 28px;
+      height: 28px;
+    }
+    .rev-title-icon svg {
+      width: 15px;
+      height: 15px;
+    }
+    .rev-icon-btn {
+      width: 32px;
+      height: 32px;
+    }
+    .rev-icon-btn svg {
+      width: 15px;
+      height: 15px;
+    }
+    .rev-action-btn {
+      width: 30px;
+      height: 30px;
+    }
+    .rev-action-btn svg {
+      width: 13px;
+      height: 13px;
+    }
+  }
+/* ================== EDIT MODAL (compact) ================== */
+.edit-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+.edit-modal-content {
+  background: var(--surface);
+  border-radius:var(--radius-md3);
+  width: 100%;
+  max-width: 380px;
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.edit-modal-compact {
+  max-width: 360px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size:var(--fs-md2);
+  font-weight: 800;
+  color: var(--text);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size:var(--fs-xl);
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-muted);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: 0.2s;
+}
+
+.modal-close:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--text);
+}
+
+.modal-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size:var(--fs-sm);
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.form-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius:var(--radius-sm);
+  font-size:var(--fs-md);
+  font-family: inherit;
+  resize: vertical;
+  min-height: 90px;
+  background: var(--surface);
+  color: var(--text);
+  transition: 0.2s;
+}
+
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(149, 117, 250, 0.12);
+}
+
+.stars-input {
+  display: flex;
+  gap: 6px;
+  font-size:var(--fs-3xl);
+  cursor: pointer;
+  user-select: none;
+  justify-content: flex-start;
+}
+
+.stars-input .star {
+  color: #d1d5db;
+  transition: color 0.15s, transform 0.15s;
+}
+
+.stars-input .star.filled {
+  color: #f59e0b;
+}
+
+.stars-input .star:hover {
+  transform: scale(1.15);
+}
+
+.modal-footer {
+  display: flex;
+  gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--card);
+}
+
+.btn-cancel {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius:var(--radius-sm);
+  font-weight: 700;
+  font-size:var(--fs-sm2);
+  cursor: pointer;
+  color: var(--text);
+  transition: 0.2s;
+}
+
+.btn-cancel:hover {
+  background: var(--hover, rgba(0, 0, 0, 0.04));
+}
+
+.btn-save {
+  flex: 1;
+  padding: 10px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius:var(--radius-sm);
+  font-weight: 700;
+  font-size:var(--fs-sm2);
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btn-save:hover {
+  filter: brightness(1.08);
+}

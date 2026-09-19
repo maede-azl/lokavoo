@@ -10,14 +10,12 @@ export default function AccountMenu() {
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user')
-    console.log('AccountMenu useEffect — raw localStorage user:', savedUser)
     if (savedUser) {
       try {
         const parsed = JSON.parse(savedUser)
-        console.log('AccountMenu useEffect — parsed user:', parsed)
         setUser(parsed)
       } catch (err) {
-        console.log('AccountMenu useEffect — parse error:', err)
+        console.error('AccountMenu — parse error:', err)
       }
     }
   }, [])
@@ -30,10 +28,7 @@ export default function AccountMenu() {
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [])
 
-  console.log('AccountMenu RENDER — current user state:', user)
-
   function handleIconClick() {
-    console.log('AccountMenu — icon clicked, user is:', user)
     if (user) {
       setOpen(o => !o)
     } else {
@@ -44,6 +39,7 @@ export default function AccountMenu() {
   function handleLogout() {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+    localStorage.removeItem('activeBusinessId')
     setUser(null)
     setOpen(false)
     navigate('/')

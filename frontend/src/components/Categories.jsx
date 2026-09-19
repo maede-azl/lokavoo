@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import CategoryCard from './CategoryCard.jsx'
 
-const API_BASE = 'http://localhost:5000'
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
 
 export default function Categories() {
   const [categories, setCategories] = useState([])

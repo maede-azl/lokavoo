@@ -3,9 +3,18 @@ const prisma = require('../config/db');
 const path = require('path');
 const fs = require('fs');
 const { logActivity } = require('./activity.controller');
- 
-console.log('=== profile.controller.js LOADED SUCCESSFULLY ===');
- 
+const { getFileUrl } = require('../services/storage');
+
+// فایل‌های محلی (دیسک سرور) با /uploads/ شروع می‌شوند؛ فایل‌های S3 یک
+// URL کامل (https://...) هستند. فقط فایل‌های محلی را با fs پاک می‌کنیم.
+function deleteLocalFileIfExists(relativeOrFullUrl) {
+  if (!relativeOrFullUrl || !relativeOrFullUrl.startsWith('/uploads/')) return;
+  const fullPath = path.join(__dirname, '../../', relativeOrFullUrl);
+  if (fs.existsSync(fullPath)) {
+    fs.unlinkSync(fullPath);
+  }
+}
+
 // گرفتن پروفایل کاربر لاگین‌شده + آمار واقعی
 exports.getMyProfile = async (req, res) => {
   try {
@@ -137,13 +146,10 @@ exports.uploadAvatar = async (req, res) => {
     }
  
     if (req.user.avatar) {
-      const oldPath = path.join(__dirname, '../../', req.user.avatar);
-      if (fs.existsSync(oldPath)) {
-        fs.unlinkSync(oldPath);
-      }
+      deleteLocalFileIfExists(req.user.avatar);
     }
  
-    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    const avatarUrl = getFileUrl('avatars', req.file);
  
     const updatedUser = await prisma.user.update({
       where: { id: req.user.id },
@@ -176,10 +182,7 @@ exports.uploadAvatar = async (req, res) => {
 exports.removeAvatar = async (req, res) => {
   try {
     if (req.user.avatar) {
-      const oldPath = path.join(__dirname, '../../', req.user.avatar);
-      if (fs.existsSync(oldPath)) {
-        fs.unlinkSync(oldPath);
-      }
+      deleteLocalFileIfExists(req.user.avatar);
     }
  
     const updatedUser = await prisma.user.update({
@@ -215,10 +218,7 @@ exports.deleteMyAccount = async (req, res) => {
     const userId = req.user.id;
  
     if (req.user.avatar) {
-      const oldPath = path.join(__dirname, '../../', req.user.avatar);
-      if (fs.existsSync(oldPath)) {
-        fs.unlinkSync(oldPath);
-      }
+      deleteLocalFileIfExists(req.user.avatar);
     }
  
     await prisma.review.deleteMany({ where: { user_id: userId } });
@@ -278,49 +278,50 @@ exports.submitProblemReport = async (req, res) => {
 exports.reverseGeocode = async (req, res) => {
   try {
     const { lat, lng } = req.query;
- 
+
     if (!lat || !lng) {
       return res.status(400).json({
         success: false,
         message: 'مختصات جغرافیایی ارسال نشده است',
       });
     }
- 
-    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${encodeURIComponent(
-      lat
-    )}&lon=${encodeURIComponent(lng)}&accept-language=fa&zoom=10`;
- 
-    const response = await fetch(url, {
-      headers: {
-        // Nominatim برای استفاده رایگان نیاز به User-Agent معتبر داره
-        'User-Agent': 'Lokavo-App/1.0 (support@lokavo.ir)',
-      },
-    });
- 
-    if (!response.ok) {
-      throw new Error(`Nominatim responded with ${response.status}`);
+
+    const NESHAN_SERVICE_KEY = process.env.NESHAN_SERVICE_KEY;
+    if (!NESHAN_SERVICE_KEY) {
+      return res.status(500).json({
+        success: false,
+        message: 'کلید سرویس نشان تنظیم نشده است',
+      });
     }
- 
+
+    const url = `https://api.neshan.org/v5/reverse?lat=${encodeURIComponent(
+      lat
+    )}&lng=${encodeURIComponent(lng)}`;
+
+    const response = await fetch(url, {
+      headers: { 'Api-Key': NESHAN_SERVICE_KEY },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Neshan responded with ${response.status}`);
+    }
+
     const geoData = await response.json();
-    const addr = geoData.address || {};
- 
-    // پاکسازی «استان» از ابتدای نام استان
-    const rawProvince = addr.state || addr.province || '';
-    const province = rawProvince.replace(/^استان\s*/, '').trim();
- 
-    const city =
-      addr.city || addr.town || addr.village || addr.county || '';
- 
+
+    // پاکسازی «استان» از ابتدای نام استان (نشان معمولاً بدون این پیشوند برمی‌گردونه، ولی برای اطمینان)
+    const province = (geoData.state || '').replace(/^استان\s*/, '').trim();
+    const city = geoData.city || geoData.municipality_zone || '';
+
     if (!province && !city) {
       return res.json({
         success: true,
-        data: { province: null, city: null },
+        data: { province: null, city: null, address: geoData.formatted_address || null },
       });
     }
- 
+
     res.json({
       success: true,
-      data: { province, city },
+      data: { province, city, address: geoData.formatted_address || null },
     });
   } catch (error) {
     console.error('REVERSE GEOCODE ERROR:', error);

@@ -6,7 +6,6 @@ const {
   getConversations,
   sendMessage,
   markConversationRead,
-  createTestConversation,
   getMyConversations,
   startOrGetConversation,
   sendCustomerMessage,
@@ -22,12 +21,6 @@ router.get(
 );
 router.post('/:conversationId/send', protect, sendMessage);
 router.put('/:conversationId/read', protect, markConversationRead);
-router.post(
-  '/business/:businessId/test',
-  protect,
-  checkBusinessOwner,
-  createTestConversation
-);
 
 // ===== سمت مشتری =====
 router.get('/mine', protect, getMyConversations);

@@ -1,8 +1,8 @@
 /* ============ FOOTER LAYOUT ============ */
 .site-footer {
   background: var(--surface, #fff);
-  border-top: 1px solid var(--border, #e3e8f2);
-  color: var(--text, #0b1220);
+  border-top: 1px solid var(--border, var(--border));
+  color: var(--text, var(--text));
   padding: 28px 60px 40px !important;
   height: auto !important;
   min-height: 0 !important;
@@ -34,15 +34,15 @@
 }
 
 .footer-brand h3 {
-  font-size: 20px;
+  font-size:var(--fs-lg2);
   font-weight: 900;
   margin-bottom: 8px !important;
 }
 
 .brand-content p {
-  font-size: 13px;
+  font-size:var(--fs-sm2);
   line-height: 1.7 !important;
-  color: var(--text-muted, #5b6b84);
+  color: var(--text-muted, var(--text-muted));
   margin-bottom: 10px !important;
 }
 
@@ -55,8 +55,8 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border: 1.5px solid var(--border, #e3e8f2);
-  color: var(--text-muted, #5b6b84);
+  border: 1.5px solid var(--border, var(--border));
+  color: var(--text-muted, var(--text-muted));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -64,8 +64,8 @@
 }
 
 .footer-social a:hover {
-  background: var(--primary, #2547e8);
-  border-color: var(--primary, #2547e8);
+  background: var(--primary, var(--primary));
+  border-color: var(--primary, var(--primary));
   color: #fff;
 }
 
@@ -87,7 +87,7 @@
 }
 
 .footer-col h4 {
-  font-size: 13.5px;
+  font-size:var(--fs-md);
   font-weight: 800;
   margin: 0 0 10px !important;
   line-height: 1.3 !important;
@@ -95,9 +95,9 @@
 
 .footer-col a {
   display: block;
-  font-size: 12.8px;
+  font-size:var(--fs-sm2);
   line-height: 1.4 !important;
-  color: var(--text-muted, #5b6b84);
+  color: var(--text-muted, var(--text-muted));
   padding: 5px 0 !important;
   margin: 0 !important;
   transition: 0.15s;
@@ -105,21 +105,42 @@
 }
 
 .footer-col a:hover {
-  color: var(--primary, #2547e8);
+  color: var(--primary, var(--primary));
+}
+
+
+.footer-link-button {
+  display: block;
+  width: 100%;
+  padding: 5px 0 !important;
+  margin: 0 !important;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted, var(--text-muted));
+  font: inherit;
+  font-size: var(--fs-sm2);
+  line-height: 1.4;
+  text-align: start;
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+.footer-link-button:hover {
+  color: var(--primary, var(--primary));
 }
 
 /* --- bottom bar --- */
 .footer-bottom {
-  border-top: 1px solid var(--border, #e3e8f2);
+  border-top: 1px solid var(--border, var(--border));
   padding: 14px 0 0 !important;
   margin-top: 0 !important;
   display: flex;
   flex-wrap: wrap;
   gap: 6px !important;
   align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--text-muted, #5b6b84);
+  justify-content: center;
+  font-size:var(--fs-sm);
+  color: var(--text-muted, var(--text-muted));
 }
 
 .footer-bottom .made {
@@ -207,8 +228,8 @@
   width: 100%;
   max-width: 420px;
   background: var(--surface, #fff);
-  color: var(--text, #0b1220);
-  border-radius: 18px;
+  color: var(--text, var(--text));
+  border-radius:var(--radius-md);
   padding: 28px 26px;
   box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.45);
   animation: footerModalPop 0.25s cubic-bezier(0.22, 0.8, 0.24, 1) both;
@@ -226,9 +247,9 @@
 }
 
 .footer-modal p {
-  font-size: 13.5px;
+  font-size:var(--fs-md);
   line-height: 1.9;
-  color: var(--text-muted, #5b6b84);
+  color: var(--text-muted, var(--text-muted));
 }
 
 .footer-modal-close {
@@ -239,8 +260,8 @@
   height: 32px;
   border: none;
   border-radius: 50%;
-  background: var(--card, #eef2fa);
-  color: var(--text-muted, #5b6b84);
+  background: var(--card, var(--card));
+  color: var(--text-muted, var(--text-muted));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -249,7 +270,7 @@
 }
 
 .footer-modal-close:hover {
-  background: var(--primary, #2547e8);
+  background: var(--primary, var(--primary));
   color: #fff;
 }
 
@@ -258,8 +279,10 @@
   height: 16px;
 }
 /* ============ MOBILE BOTTOM SPACING ============ */
+/* این فاصله فقط وقتی لازمه که زیر فوتر یک نوار پایین (BottomNav) وجود داشته باشه؛
+   صفحاتی مثل پنل فروشنده که BottomNav ندارن، این فاصله‌ی خالی رو نمی‌گیرن. */
 @media (max-width: 980px) {
-  .site-footer {
+  .site-footer:has(+ .bottom-nav) {
     margin-bottom: 90px !important;
   }
 }

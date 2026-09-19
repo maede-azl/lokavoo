@@ -1,5 +1,5 @@
 const prisma = require('../config/db');
-const { getActivePlan } = require('../utils/subscriptionHelper');
+const { getFileUrl } = require('../services/storage');
 
 // ایجاد محصول جدید
 exports.createProduct = async (req, res) => {
@@ -14,19 +14,6 @@ exports.createProduct = async (req, res) => {
       });
     }
 
-    // ===== چک محدودیت تعداد عکس =====
-    if (req.file) {
-      const { canUploadMoreImages } = require('../utils/subscriptionHelper');
-      const canUpload = await canUploadMoreImages(businessId, 1);
-
-      if (!canUpload) {
-        return res.status(403).json({
-          success: false,
-          message: "شما به سقف تعداد عکس مجاز در پلن فعلی رسیده‌اید. لطفاً پلن خود را ارتقا دهید."
-        });
-      }
-    }
-
     const product = await prisma.product.create({
       data: {
         business_id: businessId,
@@ -37,7 +24,7 @@ exports.createProduct = async (req, res) => {
         discount: Number(discount),
         color: "#2547E8",
         active: true,
-        image_url: req.file ? `/uploads/businesses/${req.file.filename}` : null
+        image_url: req.file ? getFileUrl('businesses', req.file) : null
       },
     });
 
@@ -55,22 +42,15 @@ exports.createProduct = async (req, res) => {
   }
 };
 
-// دریافت محصولات یک کسب‌وکار (فعال + غیرفعال)
+// دریافت محصولات یک کسب‌وکار
 exports.getProducts = async (req, res) => {
   try {
     const businessId = Number(req.params.businessId);
-    console.log("📥 Get Products for businessId:", businessId);
 
     const products = await prisma.product.findMany({
-      where: {
-        business_id: businessId,
-      },
-      orderBy: {
-        created_at: 'desc'
-      }
+      where: { business_id: businessId },
+      orderBy: { created_at: 'desc' }
     });
-
-    console.log(`📦 ${products.length} محصول پیدا شد`);
 
     res.json({
       success: true,
@@ -78,8 +58,6 @@ exports.getProducts = async (req, res) => {
     });
   } catch (error) {
     console.error("🔥 GET PRODUCTS FULL ERROR:", error);
-    console.error("Error name:", error.name);
-    console.error("Error message:", error.message);
     res.status(500).json({
       success: false,
       message: 'خطای سرور'
@@ -135,33 +113,6 @@ exports.updateProduct = async (req, res) => {
       });
     }
 
-    // پیدا کردن محصول برای گرفتن business_id
-    const existingProduct = await prisma.product.findUnique({
-      where: { id: productId },
-      select: { business_id: true, image_url: true }
-    });
-
-    if (!existingProduct) {
-      return res.status(404).json({
-        success: false,
-        message: "محصول پیدا نشد"
-      });
-    }
-
-    // ===== چک محدودیت تعداد عکس =====
-    // فقط وقتی عکس جدید آپلود شده و قبلاً عکس نداشته
-    if (req.file && !existingProduct.image_url) {
-      const { canUploadMoreImages } = require('../utils/subscriptionHelper');
-      const canUpload = await canUploadMoreImages(existingProduct.business_id, 1);
-
-      if (!canUpload) {
-        return res.status(403).json({
-          success: false,
-          message: "شما به سقف تعداد عکس مجاز در پلن فعلی رسیده‌اید. لطفاً پلن خود را ارتقا دهید."
-        });
-      }
-    }
-
     const data = {};
     if (name !== undefined) data.name = name;
     if (category !== undefined) data.category = category;
@@ -171,7 +122,7 @@ exports.updateProduct = async (req, res) => {
     if (active !== undefined) data.active = active === true || active === 'true' || active === '1';
 
     if (req.file) {
-      data.image_url = `/uploads/businesses/${req.file.filename}`;
+      data.image_url = getFileUrl('businesses', req.file);
     }
 
     const product = await prisma.product.update({

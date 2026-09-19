@@ -4,23 +4,27 @@ import { useNavigate } from 'react-router-dom';
 const UserIcon = () => {
   const navigate = useNavigate();
 
-  // خواندن وضعیت لاگین از localStorage (همون روشی که در HomePage استفاده کردید)
-  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-  const userName = localStorage.getItem('userName') || '';
+  // خواندن وضعیت لاگین به همان روشی که در بقیه‌ی اپ استفاده می‌شود (token + user)
+  const token = localStorage.getItem('token');
+  const isLoggedIn = !!token;
+  let userName = '';
+  try {
+    const storedUser = JSON.parse(localStorage.getItem('user') || 'null');
+    userName = storedUser?.name || storedUser?.phone || '';
+  } catch {
+    userName = '';
+  }
 
   const handleAuthAction = () => {
     if (isLoggedIn) {
       // لاگ‌اوت
       if (window.confirm('آیا مطمئن هستید که می‌خواهید خارج شوید؟')) {
-        localStorage.removeItem('isLoggedIn');
-        localStorage.removeItem('userName');
-        localStorage.removeItem('token'); // اگر توکن هم دارید
-        localStorage.removeItem('user'); // اگر اطلاعات کاربر رو هم ذخیره کردید
-        
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('activeBusinessId');
+
         // رفرش صفحه برای به‌روزرسانی وضعیت
-        window.location.reload();
-        // یا می‌تونید به صفحه اصلی هدایت کنید
-        // navigate('/');
+        window.location.href = '/';
       }
     } else {
       // رفتن به صفحه لاگین

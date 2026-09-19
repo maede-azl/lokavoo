@@ -1,11 +1,6 @@
 /* BusinessDetailPage.css */
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap');
-
-:root {
-  --radius-sm: 10px;
-  --radius-md: 18px;
-  --radius-lg: 28px;
-}
+/* --radius-sm/md/lg از فایل مرکزی tokens.css می‌آیند */
 
 * {
   box-sizing: border-box;
@@ -67,7 +62,7 @@ button {
 
 .bdp-page.lookavoo ::-webkit-scrollbar-thumb {
   background: var(--border);
-  border-radius: 20px;
+  border-radius:var(--radius-lg2);
   border: 2px solid var(--bg);
 }
 
@@ -79,6 +74,20 @@ button {
 .bdp-page .main {
   flex: 1;
   min-width: 0;
+}
+
+/* ============ SKELETON بارگذاری ============ */
+.bdp-page .bdp-skeleton-wrap{ padding:20px; display:flex; flex-direction:column; gap:20px; }
+.bdp-page .bdp-skel-hero{ width:100%; height:220px; border-radius:var(--radius-md); }
+.bdp-page .bdp-skel-header-row{ display:flex; align-items:center; gap:14px; }
+.bdp-page .bdp-skel-avatar{ width:64px; height:64px; border-radius:50%; flex-shrink:0; }
+.bdp-page .bdp-skel-lines{ flex:1; display:flex; flex-direction:column; gap:10px; }
+.bdp-page .bdp-skel-line{ border-radius:var(--radius-full); }
+.bdp-page .bdp-skel-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+.bdp-page .bdp-skel-card{ height:120px; border-radius:var(--radius-md); }
+@media (max-width:620px){
+  .bdp-page .bdp-skel-grid{ grid-template-columns:1fr; }
+  .bdp-page .bdp-skel-hero{ height:160px; }
 }
 
 .bdp-page .bdp-topbar {
@@ -103,7 +112,7 @@ button {
   width: 38px;
   height: 38px;
   padding: 0;
-  border-radius: 999px;
+  border-radius:var(--radius-full);
   background: var(--card);
   border: 1px solid var(--border);
   color: var(--text);
@@ -129,7 +138,7 @@ button {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 12.5px;
+  font-size:var(--fs-sm);
   color: var(--text-muted);
   font-weight: 600;
   overflow: hidden;
@@ -194,7 +203,7 @@ button {
   height: 220px;
   display: flex;
   align-items: flex-end;
-  background: linear-gradient(120deg, #FF7A45, #FFC24B 85%);
+  background: linear-gradient(120deg, #FF7A45, var(--accent-2) 85%);
 }
 
 .bdp-page .cover .mesh {
@@ -252,7 +261,7 @@ button {
 .bdp-page .gallery-strip .g-thumb {
   width: 52px;
   height: 52px;
-  border-radius: 12px;
+  border-radius:var(--radius-sm2);
   border: 2px solid rgba(255,255,255,.7);
   background: linear-gradient(135deg, rgba(255,255,255,.5), rgba(255,255,255,.15));
   cursor: pointer;
@@ -261,10 +270,10 @@ button {
 .bdp-page .gallery-strip .g-more {
   width: 52px;
   height: 52px;
-  border-radius: 12px;
+  border-radius:var(--radius-sm2);
   background: rgba(0,0,0,.4);
   color: #fff;
-  font-size: 11.5px;
+  font-size:var(--fs-sm);
   font-weight: 800;
   display: flex;
   align-items: center;
@@ -292,10 +301,10 @@ button {
 .bdp-page .biz-avatar {
   width: 74px;
   height: 74px;
-  border-radius: 20px;
+  border-radius:var(--radius-lg2);
   flex-shrink: 0;
   margin-top: -40px;
-  background: linear-gradient(135deg, #FF7A45, #FFC24B);
+  background: linear-gradient(135deg, #FF7A45, var(--accent-2));
   border: 4px solid var(--surface);
   display: flex;
   align-items: center;
@@ -317,7 +326,7 @@ button {
 }
 
 .bdp-page .biz-info h1 {
-  font-size: 20px;
+  font-size:var(--fs-lg2);
   font-weight: 900;
   display: flex;
   align-items: center;
@@ -338,7 +347,7 @@ button {
   gap: 10px;
   margin-top: 8px;
   flex-wrap: wrap;
-  font-size: 12.5px;
+  font-size:var(--fs-sm);
   font-weight: 700;
 }
 
@@ -346,7 +355,7 @@ button {
   background: var(--card);
   color: var(--text-muted);
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius:var(--radius-full);
 }
 
 .bdp-page .rating-pill {
@@ -370,20 +379,20 @@ button {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #16A34A;
+  color: var(--ok);
 }
 
 .bdp-page .status-pill .dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #16A34A;
+  background: var(--ok);
   box-shadow: 0 0 0 3px rgba(22,163,74,.18);
 }
 
 .bdp-page .biz-desc {
   margin-top: 13px;
-  font-size: 13px;
+  font-size:var(--fs-sm2);
   color: var(--text-muted);
   line-height: 1.9;
   max-width: 560px;
@@ -401,8 +410,8 @@ button {
   align-items: center;
   gap: 7px;
   padding: 11px 18px;
-  border-radius: 999px;
-  font-size: 13px;
+  border-radius:var(--radius-full);
+  font-size:var(--fs-sm2);
   font-weight: 800;
   cursor: pointer;
   border: 1px solid var(--border);
@@ -476,19 +485,19 @@ button {
 }
 
 .bdp-page .panel-head h3 {
-  font-size: 14.5px;
+  font-size:var(--fs-md);
   font-weight: 800;
 }
 
 .bdp-page .panel-head .muted-count {
   margin-inline-start: auto;
-  font-size: 12px;
+  font-size:var(--fs-sm);
   color: var(--text-muted);
   font-weight: 600;
 }
 
 .bdp-page .about-text {
-  font-size: 13.3px;
+  font-size:var(--fs-sm2);
   color: var(--text-muted);
   line-height: 2;
 }
@@ -501,12 +510,12 @@ button {
 }
 
 .bdp-page .chip {
-  font-size: 11.5px;
+  font-size:var(--fs-sm);
   font-weight: 700;
   color: var(--primary);
   background: var(--primary-tint);
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius:var(--radius-full);
 }
 
 .bdp-page .gal-grid {
@@ -517,7 +526,7 @@ button {
 
 .bdp-page .gal-item {
   aspect-ratio: 1 / 1;
-  border-radius: 14px;
+  border-radius:var(--radius-md2);
 }
 
 .bdp-page .aside-col {
@@ -534,7 +543,7 @@ button {
 }
 
 .bdp-page .mini-card h4 {
-  font-size: 13px;
+  font-size:var(--fs-sm2);
   font-weight: 800;
   display: flex;
   align-items: center;
@@ -560,7 +569,7 @@ button {
   background: var(--primary);
   color: #fff;
   font-weight: 800;
-  font-size: 13px;
+  font-size:var(--fs-sm2);
   cursor: pointer;
   box-shadow: 0 10px 22px -10px var(--primary);
   transition: .2s;
@@ -587,16 +596,16 @@ button {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13.5px;
+  font-size:var(--fs-md);
   font-weight: 800;
-  color: #16A34A;
+  color: var(--ok);
 }
 
 .bdp-page .status-line .dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #16A34A;
+  background: var(--ok);
 }
 
 .bdp-page .hours-list {
@@ -611,7 +620,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 12px;
+  font-size:var(--fs-sm);
   color: var(--text-muted);
   padding: 6px 0;
   border-top: 1px dashed var(--border);
@@ -631,7 +640,7 @@ button {
 }
 
 .bdp-page .addr-text {
-  font-size: 12.8px;
+  font-size:var(--fs-sm2);
   color: var(--text-muted);
   line-height: 1.8;
   margin-bottom: 12px;
@@ -639,7 +648,7 @@ button {
 
 .bdp-page .map-preview {
   height: 110px;
-  border-radius: 14px;
+  border-radius:var(--radius-md2);
   background:
     radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--primary) 16%, transparent), transparent 60%),
     repeating-linear-gradient(0deg, var(--card), var(--card) 18px, transparent 18px, transparent 19px),
@@ -667,7 +676,7 @@ button {
   inset: 0;
   background: rgba(11,18,32,.55);
   color: #fff;
-  font-size: 12px;
+  font-size:var(--fs-sm);
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -679,7 +688,7 @@ button {
   align-items: center;
   gap: 10px;
   padding: 8px 4px;
-  border-radius: 12px;
+  border-radius:var(--radius-sm2);
   cursor: pointer;
   transition: .18s;
 }
@@ -706,19 +715,19 @@ button {
 
 .bdp-page .mini-shop b {
   display: block;
-  font-size: 12.3px;
+  font-size:var(--fs-sm);
   font-weight: 800;
 }
 
 .bdp-page .mini-shop span {
-  font-size: 11px;
+  font-size:var(--fs-xs);
   color: var(--text-muted);
   font-weight: 600;
 }
 
 .bdp-page .mini-shop .m-rate {
   margin-inline-start: auto;
-  font-size: 11px;
+  font-size:var(--fs-xs);
   font-weight: 800;
   color: var(--accent);
 }
@@ -765,7 +774,7 @@ button {
 }
 
 .bdp-page .rs-big span {
-  font-size: 11.5px;
+  font-size:var(--fs-sm);
   color: var(--text-muted);
   font-weight: 600;
 }
@@ -802,11 +811,11 @@ button {
 .bdp-page .review-form textarea {
   width: 100%;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius:var(--radius-sm2);
   background: var(--card);
   padding: 12px 14px;
   font-family: inherit;
-  font-size: 13px;
+  font-size:var(--fs-sm2);
   color: var(--text);
   resize: vertical;
   min-height: 70px;
@@ -827,11 +836,11 @@ button {
 .bdp-page .submit-btn {
   border: none;
   padding: 11px 24px;
-  border-radius: 999px;
+  border-radius:var(--radius-full);
   background: var(--primary);
   color: #fff;
   font-weight: 800;
-  font-size: 13px;
+  font-size:var(--fs-sm2);
   cursor: pointer;
   box-shadow: 0 8px 18px -8px var(--primary);
   transition: .2s;
@@ -853,8 +862,8 @@ button {
   background: none;
   border: 1px solid var(--border);
   padding: 10px 20px;
-  border-radius: 999px;
-  font-size: 12.5px;
+  border-radius:var(--radius-full);
+  font-size:var(--fs-sm);
   font-weight: 700;
   color: var(--text-muted);
   cursor: pointer;
@@ -876,7 +885,7 @@ button {
   padding: 6px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius:var(--radius-md3);
   box-shadow: 0 2px 8px rgba(20,34,77,.05);
   overflow-x: auto;
   position: sticky;
@@ -889,7 +898,7 @@ button {
   background: none;
   border: none;
   font-family: inherit;
-  font-size: 13.5px;
+  font-size:var(--fs-md);
   font-weight: 700;
   color: var(--text-muted);
   cursor: pointer;
@@ -936,7 +945,7 @@ button {
 }
 
 .bdp-page .section-title {
-  font-size: 16.5px;
+  font-size:var(--fs-md2);
   font-weight: 800;
 }
 
@@ -957,7 +966,7 @@ button {
   border-radius: 9px;
   color: var(--text-muted);
   font-family: inherit;
-  font-size: 12px;
+  font-size:var(--fs-sm);
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
@@ -989,7 +998,7 @@ button {
 
 .bdp-page .product-card {
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius:var(--radius-lg2);
   background: var(--surface);
   box-shadow: 0 2px 8px rgba(20,34,77,.05);
   overflow: hidden;
@@ -1039,7 +1048,7 @@ button {
   position: absolute;
   top: 10px;
   right: 10px;
-  font-size: 10px;
+  font-size:var(--fs-2xs);
   font-weight: 800;
   padding: 5px 10px;
   border-radius: 9px;
@@ -1047,11 +1056,11 @@ button {
 }
 
 .bdp-page .badge-sale {
-  background: #DC2626;
+  background: var(--bad);
 }
 
 .bdp-page .badge-new {
-  background: #16A34A;
+  background: var(--ok);
 }
 
 .bdp-page .product-info {
@@ -1059,13 +1068,13 @@ button {
 }
 
 .bdp-page .product-name {
-  font-size: 13.5px;
+  font-size:var(--fs-md);
   font-weight: 700;
   margin-bottom: 5px;
 }
 
 .bdp-page .product-desc {
-  font-size: 11.5px;
+  font-size:var(--fs-sm);
   color: var(--text-muted);
   min-height: 36px;
   line-height: 1.7;
@@ -1082,12 +1091,12 @@ button {
 .bdp-page .price-current {
   color: var(--primary);
   font-weight: 800;
-  font-size: 13.5px;
+  font-size:var(--fs-md);
 }
 
 .bdp-page .price-old {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size:var(--fs-xs);
   text-decoration: line-through;
 }
 
@@ -1097,10 +1106,10 @@ button {
   border: 0;
   background: var(--primary-tint);
   color: var(--primary);
-  border-radius: 12px;
+  border-radius:var(--radius-sm2);
   padding: 10px;
   font-weight: 800;
-  font-size: 12px;
+  font-size:var(--fs-sm);
   cursor: pointer;
   transition: .18s;
 }
@@ -1119,7 +1128,7 @@ button {
   gap: 12px;
   padding: 50px 20px;
   border: 1px dashed var(--border);
-  border-radius: 20px;
+  border-radius:var(--radius-lg2);
   color: var(--text-muted);
   text-align: center;
 }
@@ -1130,14 +1139,14 @@ button {
 }
 
 .bdp-page .products-empty p {
-  font-size: 13px;
+  font-size:var(--fs-sm2);
   font-weight: 600;
 }
 
 .bdp-page .contact-side {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius:var(--radius-lg2);
   padding: 22px;
   position: sticky;
   top: 130px;
@@ -1162,13 +1171,13 @@ button {
 }
 
 .bdp-page .contact-side h3 {
-  font-size: 14.5px;
+  font-size:var(--fs-md);
   font-weight: 800;
   margin-bottom: 6px;
 }
 
 .bdp-page .contact-side p {
-  font-size: 11.5px;
+  font-size:var(--fs-sm);
   color: var(--text-muted);
   line-height: 1.9;
   margin-bottom: 16px;
@@ -1177,11 +1186,11 @@ button {
 /* دکمه‌های عمومی داخل تب‌ها */
 .bdp-page .btn {
   font-family: inherit;
-  font-size: 13px;
+  font-size:var(--fs-sm2);
   font-weight: 700;
   cursor: pointer;
   padding: 12px 22px;
-  border-radius: 14px;
+  border-radius:var(--radius-md2);
   border: none;
   transition: .18s ease;
   display: inline-flex;
@@ -1204,7 +1213,7 @@ button {
 /* ---- Info ---- */
 .bdp-page .info-card {
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius:var(--radius-lg2);
   background: var(--surface);
   box-shadow: 0 2px 8px rgba(20,34,77,.05);
   padding: 24px;
@@ -1218,19 +1227,19 @@ button {
 }
 
 .bdp-page .info-card .muted-count {
-  font-size: 12px;
+  font-size:var(--fs-sm);
   color: var(--text-muted);
   font-weight: 600;
 }
 
 .bdp-page .card-title {
-  font-size: 16.3px;
+  font-size:var(--fs-md2);
   font-weight: 800;
   margin-bottom: 12px;
 }
 
 .bdp-page .info-text {
-  font-size: 13.5px;
+  font-size:var(--fs-md);
   color: var(--text-muted);
   line-height: 2;
 }
@@ -1250,7 +1259,7 @@ button {
 .bdp-page .info-row .ir-ico {
   width: 34px;
   height: 34px;
-  border-radius: 10px;
+  border-radius:var(--radius-sm);
   background: var(--card);
   color: var(--primary);
   display: flex;
@@ -1265,14 +1274,14 @@ button {
 }
 
 .bdp-page .info-label {
-  font-size: 12.5px;
+  font-size:var(--fs-sm);
   color: var(--text-muted);
   font-weight: 600;
   display: block;
 }
 
 .bdp-page .info-value {
-  font-size: 14px;
+  font-size:var(--fs-md);
   font-weight: 700;
   margin-top: 2px;
   display: block;
@@ -1296,7 +1305,7 @@ button {
 .bdp-page .hours-row {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
+  font-size:var(--fs-sm2);
   padding: 9px 0;
   border-bottom: 1px dashed var(--border);
 }
@@ -1312,7 +1321,7 @@ button {
 /* ---- Reviews ---- */
 .bdp-page .reviews-summary {
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius:var(--radius-lg2);
   background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, var(--surface)), var(--surface));
   box-shadow: 0 2px 8px rgba(20,34,77,.05);
   padding: 28px;
@@ -1339,7 +1348,7 @@ button {
 }
 
 .bdp-page .rating-count {
-  font-size: 13px;
+  font-size:var(--fs-sm2);
   color: var(--text-muted);
   margin-top: 6px;
   font-weight: 600;
@@ -1353,7 +1362,7 @@ button {
 
 .bdp-page .review-card {
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius:var(--radius-md);
   background: var(--surface);
   box-shadow: 0 2px 8px rgba(20,34,77,.05);
   padding: 18px 20px;
@@ -1375,12 +1384,12 @@ button {
   align-items: center;
   justify-content: center;
   font-weight: 800;
-  font-size: 14px;
+  font-size:var(--fs-md);
   flex-shrink: 0;
 }
 
 .bdp-page .review-name {
-  font-size: 13.5px;
+  font-size:var(--fs-md);
   font-weight: 700;
 }
 
@@ -1397,12 +1406,12 @@ button {
 
 .bdp-page .review-date {
   margin-inline-start: auto;
-  font-size: 11.5px;
+  font-size:var(--fs-sm);
   color: var(--text-muted);
 }
 
 .bdp-page .review-text {
-  font-size: 13px;
+  font-size:var(--fs-sm2);
   color: var(--text-muted);
   line-height: 1.9;
 }
@@ -1411,12 +1420,12 @@ button {
   margin-top: 12px;
   padding: 12px 14px;
   background: var(--primary-tint);
-  border-radius: 10px;
+  border-radius:var(--radius-sm);
   border-right: 3px solid var(--primary);
 }
 
 .bdp-page .seller-reply-title {
-  font-size: 12px;
+  font-size:var(--fs-sm);
   font-weight: 700;
   color: var(--primary);
   margin-bottom: 4px;
@@ -1424,13 +1433,13 @@ button {
 
 .bdp-page .seller-reply-text {
   margin: 0;
-  font-size: 13.5px;
+  font-size:var(--fs-md);
   line-height: 1.7;
   color: var(--text);
 }
 
 .bdp-page .seller-reply-date {
-  font-size: 11px;
+  font-size:var(--fs-xs);
   color: var(--text-muted);
   margin-top: 6px;
 }
@@ -1479,7 +1488,7 @@ button {
   }
   .bdp-page .biz-header {
     padding: 18px 16px;
-    border-radius: 16px;
+    border-radius:var(--radius-md3);
   }
   .bdp-page .biz-main {
     gap: 12px;
@@ -1488,7 +1497,7 @@ button {
     width: 64px;
     height: 64px;
     margin-top: -34px;
-    border-radius: 18px;
+    border-radius:var(--radius-md);
   }
   .bdp-page .biz-info h1 {
     font-size: 17px;
@@ -1509,7 +1518,7 @@ button {
     gap: 18px;
   }
   .bdp-page .rs-big b {
-    font-size: 32px;
+    font-size:var(--fs-4xl);
   }
   .bdp-page .review-form {
     padding: 14px;
@@ -1542,7 +1551,7 @@ button {
     width: 32px;
     height: 32px;
     padding: 0;
-    border-radius: 999px;
+    border-radius:var(--radius-full);
   }
   .bdp-page .bdp-back-btn svg {
     width: 14px;
@@ -1567,13 +1576,13 @@ button {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
-    font-size: 10.5px;
+    font-size:var(--fs-2xs);
   }
   .bdp-page .bdp-crumbs b {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 10.5px;
+    font-size:var(--fs-2xs);
   }
   .bdp-page .bdp-crumbs .sep {
     opacity: .45;

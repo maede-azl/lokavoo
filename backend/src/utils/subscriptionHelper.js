@@ -2,20 +2,16 @@ const prisma = require('../config/db');
 
 /**
  * پلن فعال یک کسب‌وکار را برمی‌گرداند.
- * اگر اشتراک فعالی نداشت → پلن پایه (basic)
+ * اگر اشتراک فعال و منقضی‌نشده‌ای نداشت → پلن رایگان پیش‌فرض (free)
  */
 async function getActivePlan(businessId) {
   if (!businessId) return null;
 
-  // اشتراک فعال و منقضی‌نشده
   const subscription = await prisma.businessSubscription.findFirst({
     where: {
       business_id: Number(businessId),
       status: 'active',
-      OR: [
-        { expires_at: null },
-        { expires_at: { gt: new Date() } },
-      ],
+      OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }],
     },
     include: { plan: true },
     orderBy: { created_at: 'desc' },
@@ -25,52 +21,47 @@ async function getActivePlan(businessId) {
     return subscription.plan;
   }
 
-  // پیش‌فرض: پلن پایه ماهانه
-  const basicPlan = await prisma.subscriptionPlan.findFirst({
-    where: { key: 'basic', billing_cycle: 'monthly' },
+  const freePlan = await prisma.subscriptionPlan.findFirst({
+    where: { key: 'free', billing_cycle: 'monthly' },
   });
 
-  return basicPlan;
+  return freePlan;
 }
 
-/**
- * چک می‌کند آیا کسب‌وکار می‌تواند تصویر بیشتری برای محصولات آپلود کند یا نه
- * (فقط عکس‌های محصولات شمرده می‌شود — عکس‌های کسب‌وکار جدا هستند)
- */
-async function canUploadMoreImages(businessId, additionalImages = 1) {
+// آیا این کسب‌وکار اجازه دارد تبلیغ/پروموشن بخرد؟ (فقط پلن‌های رشد به بالا)
+async function canAdvertise(businessId) {
   const plan = await getActivePlan(businessId);
-  if (!plan) return false;
-
-  // فقط تعداد محصولاتی که عکس دارند
-  const productImagesCount = await prisma.product.count({
-    where: {
-      business_id: Number(businessId),
-      image_url: { not: null },
-    },
-  });
-
-  return productImagesCount + additionalImages <= plan.max_images;
+  return plan?.can_advertise === true;
 }
 
-/**
- * چک می‌کند آیا کسب‌وکار به آمار دسترسی دارد یا نه
- */
+// آیا به آمار بازدید دسترسی دارد؟
 async function canViewStats(businessId) {
   const plan = await getActivePlan(businessId);
   return plan?.view_stats === true;
 }
 
-/**
- * چک می‌کند آیا کسب‌وکار به آمار کلیک دسترسی دارد یا نه
- */
+// آیا به آمار کلیک (پیشرفته‌تر) دسترسی دارد؟
 async function canViewClickStats(businessId) {
   const plan = await getActivePlan(businessId);
   return plan?.click_stats === true;
 }
 
+// آیا می‌تواند عکس محصول بیشتری اضافه کند؟
+async function canUploadMoreImages(businessId, additionalImages = 1) {
+  const plan = await getActivePlan(businessId);
+  if (!plan) return false;
+
+  const productImagesCount = await prisma.product.count({
+    where: { business_id: Number(businessId), image_url: { not: null } },
+  });
+
+  return productImagesCount + additionalImages <= plan.max_images;
+}
+
 module.exports = {
   getActivePlan,
-  canUploadMoreImages,
+  canAdvertise,
   canViewStats,
   canViewClickStats,
+  canUploadMoreImages,
 };

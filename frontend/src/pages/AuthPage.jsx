@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import "./AuthPage.css";
+import logoBlack from "../assets/locavo-logo-black.png";
+import logoWhite from "../assets/locavo-logo-white.png";
 
-const API_BASE = "/api/auth";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+const API_BASE = `${API_BASE_URL}/api/auth`;
 
 const MODES = {
   light: { bg:"#F5F7FB", surface:"#FFFFFF", card:"#EEF2FA", text:"#0B1220", "text-muted":"#5B6B84", primary:"#2547E8", "primary-tint":"#E8ECFD", accent:"#FF9736", "accent-2":"#FFC24B", "accent-contrast":"#1B1204", border:"#E3E8F2", "hero-a":"#14224D", "hero-b":"#2547E8" },
@@ -33,6 +36,7 @@ export default function App() {
   const [returningNote, setReturningNote] = useState(false);
   const [phoneError, setPhoneError] = useState("");
   const [signupError, setSignupError] = useState("");
+  const [googleMsg, setGoogleMsg] = useState("");
   const [loadingPhone, setLoadingPhone] = useState(false);
   const [loadingVerify, setLoadingVerify] = useState(false);
   const [loadingFinish, setLoadingFinish] = useState(false);
@@ -47,13 +51,28 @@ export default function App() {
   });
   const [statsLoading, setStatsLoading] = useState(true);
 
+  // آیا ثبت‌نام کاربران جدید توسط ادمین باز است؟
+  const [registrationOpen, setRegistrationOpen] = useState(true);
+
   const otpRefs = useRef([]);
+
+  // بررسی وضعیت باز/بسته بودن ثبت‌نام (تنظیمات پنل ادمین)
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/api/settings/public`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (json?.success && json.data && json.data.registration_open === false) {
+          setRegistrationOpen(false);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // گرفتن آمار
   useEffect(() => {
     async function fetchStats() {
       try {
-        const res = await fetch("/api/stats/public");
+        const res = await fetch(`${API_BASE_URL}/api/stats/public`);
         const data = await res.json();
         if (data.success) {
           setStats(data.data);
@@ -266,6 +285,10 @@ function handlePhoneChange(e) {
   }
 
   async function finishSignup() {
+    if (!registrationOpen) {
+      setSignupError("ثبت‌نام کاربران جدید در حال حاضر توسط مدیریت سایت بسته شده است.");
+      return;
+    }
     setLoadingFinish(true);
     setSignupError("");
     const finalRole = (role === "seller" || wantsSeller) ? "seller" : "user";
@@ -331,16 +354,8 @@ function handlePhoneChange(e) {
           <div className="mesh"><span className="m1"></span><span className="m2"></span></div>
           
           <div className="av-logo">
-            <span className="brand-logo">
-              LOCAV
-              <span className="pin">
-                <svg viewBox="0 0 24 30" fill="none">
-                  <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 18 12 18s12-9 12-18C24 5.4 18.6 0 12 0Z" fill="var(--accent)"/>
-                  <circle cx="12" cy="12" r="5.2" fill="var(--hero-a)"/>
-                </svg>
-              </span>
-            </span>
-          </div>
+  <img src={logoWhite} alt="لوکاوو" className="av-logo-img" />
+</div>
 
           <div className="av-copy">
             <div className="eyebrow">
@@ -372,7 +387,7 @@ function handlePhoneChange(e) {
               <div className="fc-row">
                 <div className="fc-ico" style={{ background: "linear-gradient(135deg,#FF7A45,#FFC24B)" }}>⏳</div>
                 <div className="fc-info">
-                  <b>در حال بارگذاری...</b>
+                  <b><span className="lk-spinner" style={{ display: "inline-block", marginLeft: 8, verticalAlign: "middle" }} />در حال بارگذاری...</b>
                   <span>لطفاً صبر کنید</span>
                 </div>
                 <div className="fc-star">—</div>
@@ -413,17 +428,13 @@ function handlePhoneChange(e) {
         {/* ===================== سمت راست (فرم) ===================== */}
         <div className="auth-panel">
           <div className="panel-top">
-            <div className="panel-logo">
-              <span className="brand-logo">
-                LOCAV
-                <span className="pin">
-                  <svg viewBox="0 0 24 30" fill="none">
-                    <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 18 12 18s12-9 12-18C24 5.4 18.6 0 12 0Z" fill="var(--primary)"/>
-                    <circle cx="12" cy="12" r="5.2" fill="var(--surface)"/>
-                  </svg>
-                </span>
-              </span>
-            </div>
+          <div className="panel-logo">
+  <img 
+    src={colorMode === "dark" ? logoWhite : logoBlack} 
+    alt="لوکاوو" 
+    className="panel-logo-img" 
+  />
+</div>
             <div style={{ flex: 1 }}></div>
           </div>
 
@@ -478,11 +489,16 @@ function handlePhoneChange(e) {
                     </>
                   )}
                   <div className="divider"><span>یا</span></div>
-                  <button className="google-btn">
+                  <button
+                    className="google-btn"
+                    type="button"
+                    onClick={() => setGoogleMsg("ورود با گوگل هنوز راه‌اندازی نشده — به‌زودی")}
+                  >
                     <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.5 12.2c0-.8-.07-1.5-.2-2.2H12v4.3h5.9a5 5 0 0 1-2.2 3.3v2.7h3.5c2.1-1.9 3.3-4.7 3.3-8.1Z"/><path fill="#34A853" d="M12 23c3 0 5.4-1 7.2-2.7l-3.5-2.7c-1 .7-2.2 1.1-3.7 1.1-2.8 0-5.2-1.9-6-4.5H2.4v2.8A11 11 0 0 0 12 23Z"/><path fill="#FBBC05" d="M6 14.2a6.6 6.6 0 0 1 0-4.4V7H2.4a11 11 0 0 0 0 9.9L6 14.2Z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.3 1.7l3.1-3.1A11 11 0 0 0 2.4 7l3.6 2.8c.8-2.6 3.2-4.4 6-4.4Z"/></svg>
                     {mode === "login" ? "ورود سریع با گوگل" : "ثبت‌نام سریع با گوگل"}
                   </button>
-                  <p className="legal">با ادامه، <a href="#">شرایط استفاده</a> و <a href="#">حریم خصوصی</a> لوکاوو را می‌پذیری.</p>
+                  {googleMsg && <p className="legal" style={{ color: "var(--text-muted)" }}>{googleMsg}</p>}
+                  <p className="legal">با ادامه، <a href="/info/terms">شرایط استفاده</a> و <a href="/info/terms">حریم خصوصی</a> لوکاوو را می‌پذیری.</p>
                   {mode === "login" ? (
                     <p className="switch-link">حساب نداری؟ <a href="#" onClick={e => { e.preventDefault(); switchMode("signup"); }}>ثبت‌نام کن</a></p>
                   ) : (

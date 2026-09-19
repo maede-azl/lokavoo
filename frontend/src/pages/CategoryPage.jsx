@@ -9,7 +9,7 @@ import { useTheme } from "../context/ThemeContext";
 import logoBlack from "../assets/locavo-logo-black.png";
 import logoWhite from "../assets/locavo-logo-white.png";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 const CATEGORY_META = {
   bakery: {
@@ -71,6 +71,7 @@ export default function CategoryPage() {
     amenities: new Set(),
     sort: "relevance",
     view: "grid",
+    city: "",
   });
 
   const amenityFilters = ["ارسال", "کارتی", "پارکینگ"];
@@ -83,6 +84,7 @@ export default function CategoryPage() {
   const rateFilters = [4.8, 4.5, 4];
 
   // دریافت داده از بک‌اند
+  const cityDebounceRef = useRef(null);
   useEffect(() => {
     if (!slug || slug === "more") {
       setBusinesses([]);
@@ -91,7 +93,11 @@ export default function CategoryPage() {
     }
     setLoading(true);
     setError(null);
-    fetch(`${API_BASE}/api/businesses/category/${slug}`)
+
+    const url = new URL(`${API_BASE}/api/businesses/category/${slug}`);
+    if (state.city.trim()) url.searchParams.set("city", state.city.trim());
+
+    fetch(url)
       .then((res) => res.json())
       .then((json) => {
         if (json.success) {
@@ -108,7 +114,7 @@ export default function CategoryPage() {
         setBusinesses([]);
       })
       .finally(() => setLoading(false));
-  }, [slug]);
+  }, [slug, state.city]);
 
   // تبدیل داده‌های بک‌اند به فرمت مورد نیاز کامپوننت
   const data = useMemo(() => {
@@ -135,6 +141,7 @@ export default function CategoryPage() {
         colors,
         amenities: [],
         addr: b.address || "آدرس ثبت نشده",
+        city: b.city || "",
         image: primaryImage ? `${API_BASE}${primaryImage.image_url}` : null,
         description: b.description,
       };
@@ -195,6 +202,7 @@ export default function CategoryPage() {
       amenities: new Set(),
       sort: "relevance",
       view: "grid",
+      city: "",
     });
   };
 
@@ -210,11 +218,14 @@ export default function CategoryPage() {
       const amenities = new Set(state.amenities);
       amenities.delete(value);
       setState({ ...state, amenities });
+    } else if (type === "city") {
+      setState((p) => ({ ...p, city: "" }));
     }
   };
 
   const activeChips = [
     ...Array.from(state.amenities).map((v) => ({ type: "amenity", value: v })),
+    ...(state.city ? [{ type: "city", value: state.city }] : []),
   ];
 
   const [authUser, setAuthUser] = useState(() => {
@@ -378,7 +389,7 @@ export default function CategoryPage() {
             <div className="active-chips">
               {activeChips.map((c) => (
                 <span className="active-chip" key={`${c.type}-${c.value}`}>
-                  {c.value}
+                  {c.type === "city" ? `شهر: ${c.value}` : c.value}
                   <button onClick={() => removeChip(c.type, c.value)}>✕</button>
                 </span>
               ))}
@@ -411,6 +422,23 @@ export default function CategoryPage() {
                     }}
                   ></div>
                 </div>
+              </div>
+              <div className="f-group">
+                <h4>شهر</h4>
+                <input
+                  type="text"
+                  className="f-city-input"
+                  placeholder="مثلاً: اصفهان"
+                  key={state.city}
+                  defaultValue={state.city}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (cityDebounceRef.current) clearTimeout(cityDebounceRef.current);
+                    cityDebounceRef.current = setTimeout(() => {
+                      setState((p) => ({ ...p, city: val.trim() }));
+                    }, 500);
+                  }}
+                />
               </div>
               <div className="f-group">
                 <h4>حداقل امتیاز</h4>
@@ -568,9 +596,9 @@ export default function CategoryPage() {
               </div>
             </div>
           </div>
-          <Footer />
         </div>
       </div>
+      <Footer />
       <BottomNav items={bottomNavItems} activeNav={activeNav} onNavClick={handleNavClick} />
     </div>
   );

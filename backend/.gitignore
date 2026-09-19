@@ -5,3 +5,5 @@ node_modules
 /generated/prisma
 *.dump
 uploads/
+*.zip
+schema.prisma.backup

@@ -84,7 +84,6 @@ const BACK_ICON = (
 
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
 const MINUTES = ["00", "15", "30", "45"];
-const RING_CIRC = 151;
 const VISIBLE_CAT_COUNT = 6;
 const BASE_LAT = 35.6892;
 const BASE_LNG = 51.389;
@@ -189,6 +188,8 @@ export default function AddBusiness({ onBack }) {
   const searchDebounceRef = useRef(null);
   const [markerPos, setMarkerPos] = useState({ lat: BASE_LAT, lng: BASE_LNG });
   const [markerAddress, setMarkerAddress] = useState("");
+  const [markerCity, setMarkerCity] = useState("");
+  const [markerProvince, setMarkerProvince] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -217,16 +218,6 @@ export default function AddBusiness({ onBack }) {
     hoursRight = 100 - (ch / 24) * 100 + "%";
   }
 
-  /* ---------- progress ---------- */
-  let pct = 0;
-  if (shopName) pct += 30;
-  if (categoryId) pct += 30;
-  if (coords) pct += 25;
-  if (phone) pct += 8;
-  if (images.length) pct += 7;
-  pct = Math.min(pct, 100);
-  const pctFa = pct.toLocaleString("fa-IR") + "٪";
-  const ringOffset = RING_CIRC - (RING_CIRC * pct) / 100;
 
   /* ---------- images ---------- */
   const addImages = useCallback((files) => {
@@ -251,11 +242,8 @@ export default function AddBusiness({ onBack }) {
   /* ---------- نقشه: توابع کمکی ---------- */
   const reverseGeocode = async (lat, lng) => {
     try {
-      console.log("درخواست reverse برای:", lat, lng);
       const res = await fetch(`${API_BASE}/api/neshan/reverse?lat=${lat}&lng=${lng}`);
       const data = await res.json();
-
-      console.log("جواب کامل reverse:", data);
 
       const address =
         data.formatted_address ||
@@ -263,9 +251,9 @@ export default function AddBusiness({ onBack }) {
         [data.neighbourhood, data.city, data.state].filter(Boolean).join("، ") ||
         "";
 
-      console.log("آدرس نهایی:", address);
-
       setMarkerAddress(address || "");
+      setMarkerCity(data.city || "");
+      setMarkerProvince(data.state || "");
       return address;
     } catch (err) {
       console.error("reverse geocode error:", err);
@@ -376,6 +364,8 @@ export default function AddBusiness({ onBack }) {
     setMarkerAddress(item.address || item.title || "");
     setSearchTerm(item.title || "");
     setSearchResults([]);
+    // برای گرفتن استان/شهر ساخت‌یافته (برای فیلتر جستجوی نزدیک‌ترین‌ها)
+    reverseGeocode(lat, lng);
   };
 
   const mapCoordsLabel = `${markerPos.lat.toFixed(4)}، ${markerPos.lng.toFixed(4)}`;
@@ -458,6 +448,8 @@ export default function AddBusiness({ onBack }) {
       formData.append("address", manualAddress || (coords && coords.address) || "");
       formData.append("latitude", coords.lat);
       formData.append("longitude", coords.lng);
+      if (markerCity) formData.append("city", markerCity);
+      if (markerProvince) formData.append("province", markerProvince);
       formData.append("opening_time", `${openHour}:${openMinute}`);
       formData.append("closing_time", `${closeHour}:${closeMinute}`);
       images.forEach((file) => {
@@ -551,21 +543,7 @@ export default function AddBusiness({ onBack }) {
                 <p>اطلاعات مغازه یا خدمات خود را وارد کنید</p>
               </div>
             </div>
-            <div className="page-head-right">
-              <div className="progress-ring-wrap">
-                <div className="pr-text">
-                  <b>{pctFa}</b>
-                  <span>تکمیل پروفایل</span>
-                </div>
-                <div className="progress-ring">
-                  <svg viewBox="0 0 58 58">
-                    <circle className="track" cx="29" cy="29" r="24" />
-                    <circle className="bar" cx="29" cy="29" r="24" style={{ strokeDashoffset: ringOffset }} />
-                  </svg>
-                  <div className="pr-num">{pctFa}</div>
-                </div>
-              </div>
-            </div>
+
           </section>
 
           <div className="form-shell">
@@ -853,15 +831,6 @@ export default function AddBusiness({ onBack }) {
               </div>
 
               <div className="submit-bar">
-                <div className="sb-progress">
-                  <div className="sb-label">
-                    <span>پیشرفت تکمیل اطلاعات</span>
-                    <b>{pctFa}</b>
-                  </div>
-                  <div className="sb-track">
-                    <div className="sb-fill" style={{ width: pct + "%" }}></div>
-                  </div>
-                </div>
                 <button className="btn-submit" ref={submitBtnRef} disabled={submitting} onClick={handleSubmit}>
                   {ripples.map((rp) => (
                     <span
@@ -955,9 +924,9 @@ export default function AddBusiness({ onBack }) {
               </div>
             </div>
           </div>
-          <Footer />
         </div>
       </div>
+      <Footer />
 
       {/* منوی پایین صفحه — نسخه موبایل */}
       <BottomNav items={bottomNavItems} activeNav={activeNav} onNavClick={handleNavClick} />

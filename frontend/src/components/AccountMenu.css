@@ -7,9 +7,9 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  border: 1px solid var(--border, #E3E8F2);
+  border: 1px solid var(--border, var(--border));
   background: var(--surface, #fff);
-  color: var(--primary, #2547E8);
+  color: var(--primary, var(--primary));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -18,7 +18,7 @@
 }
 
 .account-icon-btn:hover {
-  background: var(--primary-tint, #E8ECFD);
+  background: var(--primary-tint, var(--primary-tint));
 }
 
 .account-icon-btn svg {
@@ -32,8 +32,8 @@
   left: 50%;
   transform: translateX(-50%);
   background: var(--surface, #fff);
-  border: 1px solid var(--border, #E3E8F2);
-  border-radius: 12px;
+  border: 1px solid var(--border, var(--border));
+  border-radius:var(--radius-sm2);
   padding: 14px 16px;
   width: 220px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.12);
@@ -50,12 +50,12 @@
 .account-dropdown-title {
   font-weight: 600;
   margin: 0 0 4px;
-  color: var(--text, #0B1220);
+  color: var(--text, var(--text));
 }
 
 .account-dropdown-sub {
-  font-size: 13px;
-  color: var(--text-muted, #5B6B84);
+  font-size:var(--fs-sm2);
+  color: var(--text-muted, var(--text-muted));
   margin: 0 0 12px;
 }
 
@@ -63,10 +63,10 @@
   width: 100%;
   padding: 8px 0;
   border: none;
-  border-radius: 8px;
-  background: var(--primary, #2547E8);
+  border-radius:var(--radius-xs);
+  background: var(--primary, var(--primary));
   color: #fff;
-  font-size: 13px;
+  font-size:var(--fs-sm2);
   cursor: pointer;
 }
 

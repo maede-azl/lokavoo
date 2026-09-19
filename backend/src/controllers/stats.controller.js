@@ -2,20 +2,24 @@ const prisma = require('../config/db');
 
 exports.getPublicStats = async (req, res) => {
   try {
-    // همه کسب‌وکارها رو می‌شماریم (فعلاً فیلتر status برمی‌داریم)
-    const totalBusinesses = await prisma.business.count();
+    // فقط کسب‌وکارهای واقعاً تاییدشده و عمومی رو بشمار
+    const totalBusinesses = await prisma.business.count({
+      where: { status: 'approved' },
+    });
 
-    // میانگین امتیاز
+    // میانگین امتیاز — فقط نظرات مربوط به کسب‌وکارهای تاییدشده
     const ratingAgg = await prisma.review.aggregate({
-      _avg: { rating: true }
+      _avg: { rating: true },
+      where: { business: { status: 'approved' } },
     });
 
     const averageRating = ratingAgg._avg.rating
       ? Number(ratingAgg._avg.rating.toFixed(1))
       : 4.8;
 
-    // دو تا کسب‌وکار برای کارت شناور
+    // دو تا کسب‌وکار برای کارت شناور — فقط از بین تاییدشده‌ها
     const featured = await prisma.business.findMany({
+      where: { status: 'approved' },
       take: 2,
       orderBy: { id: 'desc' },
       select: {

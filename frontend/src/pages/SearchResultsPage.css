@@ -18,7 +18,7 @@
 .lokaoo-root mark{ background:none; color:var(--primary); font-weight:800; }
 .lokaoo-root ::-webkit-scrollbar{ width:10px; }
 .lokaoo-root ::-webkit-scrollbar-track{ background:transparent; }
-.lokaoo-root ::-webkit-scrollbar-thumb{ background:var(--border); border-radius:20px; border:2px solid var(--bg); }
+.lokaoo-root ::-webkit-scrollbar-thumb{ background:var(--border); border-radius:var(--radius-lg2); border:2px solid var(--bg); }
 
 /* ============ SHELL ============ */
 .lokaoo-root .app-shell{ display:flex; min-height:100vh; }
@@ -64,20 +64,20 @@
   display:inline-flex;
   align-items:center;
   gap:7px;
-  font-size:11.5px;
+  font-size:var(--fs-sm);
   font-weight:800;
   color:rgba(255,255,255,.75);
   background:rgba(255,255,255,.12);
   border:1px solid rgba(255,255,255,.2);
   padding:6px 14px;
-  border-radius:999px;
+  border-radius:var(--radius-full);
   backdrop-filter:blur(6px);
   margin-bottom:16px;
   opacity:0;
   animation:fadeUp .6s ease .05s forwards;
 }
 .lokaoo-root .hero-inner p{
-  font-size:13px;
+  font-size:var(--fs-sm2);
   color:rgba(255,255,255,.68);
   margin-bottom:26px;
   opacity:0;
@@ -154,7 +154,7 @@
   align-items:center;
   gap:10px;
   background:var(--surface);
-  border-radius:999px;
+  border-radius:var(--radius-full);
   padding:8px 8px 8px 20px;
   box-shadow:0 24px 50px -20px rgba(0,0,0,.5);
   border:2px solid transparent;
@@ -188,7 +188,7 @@
   outline:none;
   background:transparent;
   font-family:inherit;
-  font-size:15px;
+  font-size:var(--fs-md3);
   font-weight:600;
   color:var(--text);
   padding:10px 0;
@@ -216,12 +216,12 @@
 .lokaoo-root .search-go{
   flex-shrink:0;
   border:none;
-  border-radius:999px;
+  border-radius:var(--radius-full);
   padding:13px 24px;
   background:var(--primary);
   color:#fff;
   font-weight:800;
-  font-size:13px;
+  font-size:var(--fs-sm2);
   cursor:pointer;
   display:flex;
   align-items:center;
@@ -253,7 +253,7 @@
   z-index: 60;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius:var(--radius-md);
   box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.45);
   text-align: start;
   overflow: hidden;
@@ -272,7 +272,7 @@
 }
 
 .lokaoo-root .suggest-section-label {
-  font-size: 11px;
+  font-size:var(--fs-xs);
   font-weight: 800;
   color: var(--text-muted);
   padding: 14px 18px 6px;
@@ -295,7 +295,7 @@
 .lokaoo-root .suggest-icon {
   width: 32px;
   height: 32px;
-  border-radius: 10px;
+  border-radius:var(--radius-sm);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -316,7 +316,7 @@
 }
 
 .lokaoo-root .suggest-text .st-name {
-  font-size: 13px;
+  font-size:var(--fs-sm2);
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
@@ -324,7 +324,7 @@
 }
 
 .lokaoo-root .suggest-text .st-cat {
-  font-size: 11px;
+  font-size:var(--fs-xs);
   color: var(--text-muted);
   margin-top: 1px;
 }
@@ -344,10 +344,10 @@
 }
 
 .lokaoo-root .suggest-chip {
-  font-size: 11.8px;
+  font-size:var(--fs-sm);
   font-weight: 700;
   padding: 7px 13px;
-  border-radius: 999px;
+  border-radius:var(--radius-full);
   border: 1.5px solid var(--border);
   color: var(--text-muted);
   cursor: pointer;
@@ -373,17 +373,17 @@
   animation:fadeUp .6s ease .3s forwards;
 }
 .lokaoo-root .trend-label{
-  font-size:11.5px;
+  font-size:var(--fs-sm);
   color:rgba(255,255,255,.6);
   font-weight:700;
   margin-inline-end:2px;
   align-self:center;
 }
 .lokaoo-root .trend-chip{
-  font-size:11.8px;
+  font-size:var(--fs-sm);
   font-weight:700;
   padding:7px 14px;
-  border-radius:999px;
+  border-radius:var(--radius-full);
   background:rgba(255,255,255,.12);
   border:1px solid rgba(255,255,255,.2);
   color:#fff;
@@ -396,7 +396,7 @@
 /* Compact mode */
 .lokaoo-root .search-hero.compact{ padding:20px 34px 62px; }
 .lokaoo-root .search-hero.compact .hero-eyebrow{ display:none; }
-.lokaoo-root .search-hero.compact .hero-topbar-title{ font-size:19px; }
+.lokaoo-root .search-hero.compact .hero-topbar-title{ font-size:var(--fs-lg3); }
 .lokaoo-root .search-hero.compact .hero-topbar{ margin-bottom:4px; }
 .lokaoo-root .search-hero.compact .hero-inner p{ font-size:0; margin-bottom:14px; height:0; overflow:hidden; }
 .lokaoo-root .search-hero.compact .trend-row{ display:none; }
@@ -424,8 +424,8 @@
   border:none;
   background:transparent;
   padding:11px 17px;
-  border-radius:12px;
-  font-size:12.8px;
+  border-radius:var(--radius-sm2);
+  font-size:var(--fs-sm2);
   font-weight:700;
   color:var(--text-muted);
   cursor:pointer;
@@ -435,13 +435,13 @@
   transition:color .2s ease;
   white-space:nowrap;
 }
-.lokaoo-root .result-tabs button .tcnt{ font-size:10px; opacity:.7; }
+.lokaoo-root .result-tabs button .tcnt{ font-size:var(--fs-2xs); opacity:.7; }
 .lokaoo-root .result-tabs button.active{ color:#fff; }
 .lokaoo-root .tab-indicator{
   position:absolute;
   top:2px;
   bottom:2px;
-  border-radius:12px;
+  border-radius:var(--radius-sm2);
   background:var(--primary);
   z-index:1;
   box-shadow:0 8px 18px -8px var(--primary);
@@ -455,9 +455,9 @@
   gap:8px;
   background:var(--card);
   border:none;
-  border-radius:999px;
+  border-radius:var(--radius-full);
   padding:11px 16px;
-  font-size:12.5px;
+  font-size:var(--fs-sm);
   font-weight:700;
   color:var(--text);
   cursor:pointer;
@@ -472,7 +472,7 @@
   min-width:190px;
   background:var(--surface);
   border:1px solid var(--border);
-  border-radius:14px;
+  border-radius:var(--radius-md2);
   padding:6px;
   box-shadow:0 24px 44px -20px rgba(0,0,0,.35);
   opacity:0;
@@ -491,8 +491,8 @@
   border:none;
   background:none;
   padding:10px 12px;
-  border-radius:10px;
-  font-size:12.8px;
+  border-radius:var(--radius-sm);
+  font-size:var(--fs-sm2);
   font-weight:700;
   color:var(--text-muted);
   cursor:pointer;
@@ -502,13 +502,13 @@
 .lokaoo-root .sort-menu button.active{ background:var(--primary-tint); color:var(--primary); }
 .lokaoo-root .sort-menu button svg{ width:14px; height:14px; opacity:0; }
 .lokaoo-root .sort-menu button.active svg{ opacity:1; }
-.lokaoo-root .view-toggle{ display:flex; gap:3px; background:var(--card); border-radius:999px; padding:4px; }
+.lokaoo-root .view-toggle{ display:flex; gap:3px; background:var(--card); border-radius:var(--radius-full); padding:4px; }
 .lokaoo-root .view-toggle button{
   border:none;
   background:transparent;
   width:34px;
   height:34px;
-  border-radius:999px;
+  border-radius:var(--radius-full);
   display:flex;
   align-items:center;
   justify-content:center;
@@ -542,15 +542,15 @@
   gap:22px;
 }
 .lokaoo-root .filters-head{ display:flex; align-items:center; justify-content:space-between; }
-.lokaoo-root .filters-head h3{ font-size:14.5px; font-weight:800; }
-.lokaoo-root .reset-link{ font-size:11.5px; color:var(--primary); font-weight:700; cursor:pointer; background:none; border:none; }
-.lokaoo-root .f-group h4{ font-size:12.5px; font-weight:800; margin-bottom:12px; color:var(--text-muted); }
+.lokaoo-root .filters-head h3{ font-size:var(--fs-md); font-weight:800; }
+.lokaoo-root .reset-link{ font-size:var(--fs-sm); color:var(--primary); font-weight:700; cursor:pointer; background:none; border:none; }
+.lokaoo-root .f-group h4{ font-size:var(--fs-sm); font-weight:800; margin-bottom:12px; color:var(--text-muted); }
 .lokaoo-root .f-chip-grid{ display:flex; flex-wrap:wrap; gap:7px; }
 .lokaoo-root .f-chip{
-  font-size:11.8px;
+  font-size:var(--fs-sm);
   font-weight:700;
   padding:8px 13px;
-  border-radius:999px;
+  border-radius:var(--radius-full);
   border:1.5px solid var(--border);
   background:var(--surface);
   color:var(--text-muted);
@@ -562,13 +562,19 @@
 }
 .lokaoo-root .f-chip:hover{ border-color:var(--primary); color:var(--primary); }
 .lokaoo-root .f-chip.on{ background:var(--primary); border-color:var(--primary); color:#fff; }
-.lokaoo-root .f-chip .cnt{ font-size:10px; opacity:.75; }
+.lokaoo-root .f-chip .cnt{ font-size:var(--fs-2xs); opacity:.75; }
 .lokaoo-root .toggle-row{ display:flex; align-items:center; justify-content:space-between; }
-.lokaoo-root .toggle-row span{ font-size:13px; font-weight:700; }
+.lokaoo-root .toggle-row span{ font-size:var(--fs-sm2); font-weight:700; }
+.lokaoo-root .f-city-input{
+  width:100%; border:1.5px solid var(--border); background:var(--surface);
+  border-radius:var(--radius-sm2); padding:10px 14px; font-size:var(--fs-sm2);
+  font-weight:600; font-family:inherit; color:var(--text); outline:none; transition:.2s;
+}
+.lokaoo-root .f-city-input:focus{ border-color:var(--primary); box-shadow:0 0 0 4px var(--primary-tint); }
 .lokaoo-root .switch{
   width:40px;
   height:23px;
-  border-radius:999px;
+  border-radius:var(--radius-full);
   background:var(--card);
   position:relative;
   cursor:pointer;
@@ -594,12 +600,12 @@
   display:flex;
   align-items:center;
   gap:9px;
-  font-size:12.8px;
+  font-size:var(--fs-sm2);
   font-weight:600;
   color:var(--text-muted);
   cursor:pointer;
   padding:6px 8px;
-  border-radius:10px;
+  border-radius:var(--radius-sm);
   transition:.16s;
 }
 .lokaoo-root .rate-opt:hover{ background:var(--card); }
@@ -608,7 +614,7 @@
 .lokaoo-root .rate-opt .stars-mini{ display:flex; gap:1px; color:var(--accent); }
 .lokaoo-root .rate-opt .stars-mini svg{ width:11px; height:11px; }
 .lokaoo-root .amenity-list{ display:flex; flex-direction:column; gap:9px; }
-.lokaoo-root .amenity{ display:flex; align-items:center; gap:9px; font-size:12.6px; font-weight:600; color:var(--text-muted); cursor:pointer; }
+.lokaoo-root .amenity{ display:flex; align-items:center; gap:9px; font-size:var(--fs-sm2); font-weight:600; color:var(--text-muted); cursor:pointer; }
 .lokaoo-root .amenity input{ accent-color:var(--primary); width:15px; height:15px; }
 
 /* ---- RESULTS ---- */
@@ -620,20 +626,20 @@
   gap:10px;
   margin-bottom:16px;
 }
-.lokaoo-root .results-count{ font-size:13.5px; font-weight:800; }
+.lokaoo-root .results-count{ font-size:var(--fs-md); font-weight:800; }
 .lokaoo-root .results-count b{ color:var(--primary); }
-.lokaoo-root .results-count .rtime{ font-size:11.5px; color:var(--text-muted); font-weight:600; margin-inline-start:6px; }
+.lokaoo-root .results-count .rtime{ font-size:var(--fs-sm); color:var(--text-muted); font-weight:600; margin-inline-start:6px; }
 .lokaoo-root .active-chips{ display:flex; gap:7px; flex-wrap:wrap; }
 .lokaoo-root .active-chip{
   display:flex;
   align-items:center;
   gap:6px;
-  font-size:11.5px;
+  font-size:var(--fs-sm);
   font-weight:700;
   background:var(--primary-tint);
   color:var(--primary);
   padding:6px 8px 6px 12px;
-  border-radius:999px;
+  border-radius:var(--radius-full);
   animation:chipIn .22s ease;
 }
 .lokaoo-root .active-chip.out{ animation:chipOut .18s ease forwards; }
@@ -650,7 +656,7 @@
   align-items:center;
   justify-content:center;
   cursor:pointer;
-  font-size:10px;
+  font-size:var(--fs-2xs);
 }
 .lokaoo-root .results-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
 .lokaoo-root .results-grid.list-view{ grid-template-columns:1fr; }
@@ -707,10 +713,10 @@
   position:absolute;
   top:10px;
   inset-inline-start:10px;
-  font-size:10.5px;
+  font-size:var(--fs-2xs);
   font-weight:800;
   padding:5px 11px;
-  border-radius:999px;
+  border-radius:var(--radius-full);
   color:#fff;
   backdrop-filter:blur(6px);
   z-index:3;
@@ -721,10 +727,10 @@
   position:absolute;
   top:10px;
   inset-inline-end:10px;
-  font-size:10px;
+  font-size:var(--fs-2xs);
   font-weight:900;
   padding:5px 10px;
-  border-radius:999px;
+  border-radius:var(--radius-full);
   background:#fff;
   color:#111;
   z-index:3;
@@ -734,10 +740,10 @@
   bottom:8px;
   inset-inline-start:8px;
   z-index:3;
-  font-size:10px;
+  font-size:var(--fs-2xs);
   font-weight:800;
   padding:5px 10px;
-  border-radius:999px;
+  border-radius:var(--radius-full);
   background:rgba(0,0,0,.4);
   color:#fff;
   backdrop-filter:blur(6px);
@@ -778,14 +784,14 @@
 }
 .lokaoo-root .qa-btn svg{ width:14px; height:14px; color:#111; opacity:1; }
 .lokaoo-root .shop-body{ padding:16px; display:flex; flex-direction:column; gap:11px; }
-.lokaoo-root .shop-name{ font-size:14.5px; font-weight:800; display:flex; align-items:center; gap:5px; }
+.lokaoo-root .shop-name{ font-size:var(--fs-md); font-weight:800; display:flex; align-items:center; gap:5px; }
 .lokaoo-root .shop-name svg{ width:14px; height:14px; color:var(--primary); flex-shrink:0; }
-.lokaoo-root .shop-tag{ font-size:11.5px; color:var(--text-muted); margin-top:3px; font-weight:600; }
-.lokaoo-root .shop-meta{ display:flex; align-items:center; justify-content:space-between; font-size:12px; color:var(--text-muted); }
+.lokaoo-root .shop-tag{ font-size:var(--fs-sm); color:var(--text-muted); margin-top:3px; font-weight:600; }
+.lokaoo-root .shop-meta{ display:flex; align-items:center; justify-content:space-between; font-size:var(--fs-sm); color:var(--text-muted); }
 .lokaoo-root .rating{ display:flex; align-items:center; gap:4px; color:var(--accent); font-weight:800; }
 .lokaoo-root .rating svg{ width:13px; height:13px; }
 .lokaoo-root .shop-addr{
-  font-size:12px;
+  font-size:var(--fs-sm);
   color:var(--text-muted);
   line-height:1.7;
   border-top:1px dashed var(--border);
@@ -815,7 +821,7 @@
 .lokaoo-root .empty-state .e-icon{
   width:64px;
   height:64px;
-  border-radius:20px;
+  border-radius:var(--radius-lg2);
   background:var(--card);
   display:flex;
   align-items:center;
@@ -824,17 +830,17 @@
 }
 @keyframes softBounce{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-6px); } }
 .lokaoo-root .empty-state .e-icon svg{ width:28px; height:28px; color:var(--text-muted); }
-.lokaoo-root .empty-state h4{ font-size:15px; font-weight:800; }
-.lokaoo-root .empty-state p{ font-size:12.8px; color:var(--text-muted); max-width:320px; }
+.lokaoo-root .empty-state h4{ font-size:var(--fs-md3); font-weight:800; }
+.lokaoo-root .empty-state p{ font-size:var(--fs-sm2); color:var(--text-muted); max-width:320px; }
 .lokaoo-root .empty-state button{
   margin-top:6px;
   border:none;
   background:var(--primary);
   color:#fff;
   font-weight:800;
-  font-size:12.8px;
+  font-size:var(--fs-sm2);
   padding:11px 22px;
-  border-radius:999px;
+  border-radius:var(--radius-full);
   cursor:pointer;
   box-shadow:0 10px 22px -10px var(--primary);
 }
@@ -843,8 +849,8 @@
   background:none;
   border:1px solid var(--border);
   padding:12px 26px;
-  border-radius:999px;
-  font-size:12.8px;
+  border-radius:var(--radius-full);
+  font-size:var(--fs-sm2);
   font-weight:700;
   color:var(--text-muted);
   cursor:pointer;
@@ -868,7 +874,7 @@
   }
   .lokaoo-root .search-hero{ padding:34px 18px 76px; }
   .lokaoo-root .hero-inner{ max-width:100%; padding:0 4px; }
-  .lokaoo-root .hero-topbar-title{ font-size:22px; }
+  .lokaoo-root .hero-topbar-title{ font-size:var(--fs-xl); }
   .lokaoo-root .result-tabs{ overflow-x:auto; }
 }
 
@@ -891,7 +897,7 @@
   }
 
   .lokaoo-root .hero-topbar-title{
-    font-size:20px;
+    font-size:var(--fs-lg2);
     line-height:1.35;
     flex:1;
     min-width:0;
@@ -910,7 +916,7 @@
   .lokaoo-root .hero-icon-btn svg{ width:16px; height:16px; }
 
   .lokaoo-root .hero-inner p{
-    font-size:12.5px;
+    font-size:var(--fs-sm);
     line-height:1.8;
     margin-bottom:20px;
     padding:0 2px;
@@ -932,7 +938,7 @@
     margin:0 auto;
   }
   .lokaoo-root .big-search-box input{
-    font-size:14px;
+    font-size:var(--fs-md);
     padding:11px 0;
   }
 
@@ -953,7 +959,7 @@
     margin-inline-end:0;
   }
   .lokaoo-root .trend-chip{
-    font-size:12px;
+    font-size:var(--fs-sm);
     padding:7px 13px;
   }
 
@@ -969,7 +975,7 @@
   }
   .lokaoo-root .sort-select{
     padding:10px 12px;
-    font-size:12px;
+    font-size:var(--fs-sm);
   }
   .lokaoo-root .view-toggle button{
     width:32px;
@@ -980,15 +986,15 @@
 /* گوشی‌های خیلی کوچک */
 @media (max-width:380px){
   .lokaoo-root .search-hero{ padding:18px 12px 110px; }
-  .lokaoo-root .hero-topbar-title{ font-size:18px; }
+  .lokaoo-root .hero-topbar-title{ font-size:var(--fs-lg); }
   .lokaoo-root .hero-inner p{
-    font-size:12px;
+    font-size:var(--fs-sm);
     line-height:1.75;
     padding:0;
   }
   .lokaoo-root .hero-icon-btn{ width:34px; height:34px; }
   .lokaoo-root .big-search-box{ padding:6px 6px 6px 14px; }
-  .lokaoo-root .big-search-box input{ font-size:13.5px; }
+  .lokaoo-root .big-search-box input{ font-size:var(--fs-md); }
 }
 
 /* حالت compact در موبایل */

@@ -4,6 +4,9 @@ exports.getCategories = async (req, res) => {
   try {
     const categories = await prisma.category.findMany({
       orderBy: { id: 'asc' },
+      include: {
+        _count: { select: { businesses: true } },
+      },
     });
     res.json({ success: true, data: categories });
   } catch (error) {

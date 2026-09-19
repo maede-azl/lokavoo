@@ -43,7 +43,7 @@
   border-radius:var(--radius-sm, 10px);
   color:var(--text-muted);
   text-decoration:none;
-  font-size:13.5px;
+  font-size:var(--fs-md);
   font-weight:600;
   position:relative;
   transition:.18s;
@@ -100,7 +100,7 @@
   color:var(--accent-contrast);
   font-family:inherit;
   font-weight:800;
-  font-size:13px;
+  font-size:var(--fs-sm2);
   display:flex;
   align-items:center;
   justify-content:center;
@@ -142,10 +142,10 @@
   font-family:inherit;
   cursor:pointer;
   color:var(--text-muted);
-  font-size:10px;
+  font-size:var(--fs-2xs);
   font-weight:700;
   padding:5px 10px;
-  border-radius:12px;
+  border-radius:var(--radius-sm2);
   transition:.18s;
   text-decoration:none;
 }

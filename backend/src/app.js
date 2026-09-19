@@ -1,63 +1,171 @@
-//app.js
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+
 const app = express();
-const profileRoutes = require('./routes/profile.routes');
 
-// ۱. CORS
-app.use(cors({
-  origin: 'http://localhost:5173',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+// ============================================
+// CORS
+// ============================================
 
-// ۲. Body parser
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL
+      ? process.env.FRONTEND_URL.split(',')
+      : 'http://localhost:5173',
+    methods: [
+      'GET',
+      'POST',
+      'PUT',
+      'DELETE',
+      'OPTIONS',
+    ],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+    ],
+    credentials: true,
+  })
+);
 
-app.use('/api/bookmarks', require('./routes/bookmark.routes'));
-app.use('/api/activity', require('./routes/activity.routes'));
+// ============================================
+// Body Parser
+// ============================================
 
-// ۳. فایل‌های استاتیک
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use(
+  express.json({
+    limit: '10mb',
+  })
+);
 
-// ۴. روت‌ها
-const statsRoutes = require('./routes/stats.routes');
-const authRoutes = require('./routes/auth.routes');
-const businessRoutes = require('./routes/business.routes');
-const reviewRoutes = require('./routes/review.routes');
-const categoryRoutes = require('./routes/category.routes');
-const neshanRoutes = require('./routes/neshan');
-const messageRoutes = require('./routes/message.routes');
-const notificationRoutes = require('./routes/notification.routes');
+app.use(
+  express.urlencoded({
+    extended: true,
+    limit: '10mb',
+  })
+);
 
-app.use('/api/stats', statsRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api/businesses', businessRoutes);
-app.use('/api/reviews', reviewRoutes);
-app.use('/api/categories', categoryRoutes);
-app.use('/api/neshan', neshanRoutes);
-app.use('/api/messages', messageRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/profile', profileRoutes);
-app.use('/api/subscriptions', require('./routes/subscription.routes'));
-app.get('/api/profile/test', (req, res) => {
-  res.json({ success: true, message: 'profile route is working' });
+// ============================================
+// Static Files
+// ============================================
+
+app.use(
+  '/uploads',
+  express.static(
+    path.join(__dirname, '..', 'uploads')
+  )
+);
+
+// ============================================
+// Routes
+// ============================================
+
+app.use(
+  '/api/bookmarks',
+  require('./routes/bookmark.routes')
+);
+
+app.use(
+  '/api/activity',
+  require('./routes/activity.routes')
+);
+
+app.use(
+  '/api/auth',
+  require('./routes/auth.routes')
+);
+
+app.use(
+  '/api/businesses',
+  require('./routes/business.routes')
+);
+
+app.use(
+  '/api/categories',
+  require('./routes/category.routes')
+);
+
+app.use(
+  '/api/reviews',
+  require('./routes/review.routes')
+);
+
+app.use(
+  '/api/neshan',
+  require('./routes/neshan')
+);
+
+app.use(
+  '/api/messages',
+  require('./routes/message.routes')
+);
+
+app.use(
+  '/api/notifications',
+  require('./routes/notification.routes')
+);
+
+app.use(
+  '/api/stats',
+  require('./routes/stats.routes')
+);
+
+app.use(
+  '/api/profile',
+  require('./routes/profile.routes')
+);
+
+app.use(
+  '/api/admin',
+  require('./routes/admin.routes')
+);
+
+app.use(
+  '/api/settings',
+  require('./routes/settings.routes')
+);
+
+app.use(
+  '/api/support',
+  require('./routes/support.routes')
+);
+
+app.use(
+  '/api/subscriptions',
+  require('./routes/subscription.routes')
+);
+
+app.use(
+  '/api/payment',
+  require('./routes/payment.routes')
+);
+
+// ============================================
+// Error Handler
+// ============================================
+
+app.use((err, req, res, next) => {
+  console.error('GLOBAL ERROR:', err);
+
+  res.status(500).json({
+    success: false,
+    message:
+      err.message || 'خطای داخلی سرور',
+  });
 });
 
-// تست موقت
-app.post('/api/test-track', (req, res) => {
-  console.log('TEST TRACK WORKS');
-  res.json({ success: true, message: 'test ok' });
-});
+// ============================================
+// Server
+// ============================================
 
-// ۵. سرور + Keep Alive
 const PORT = process.env.PORT || 5000;
 
-const server = app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(PORT, () => {
+  console.log(
+    `🚀 Server running on port ${PORT}`
+  );
 });
 
-// این خط جلوی بسته شدن ناخواسته رو می‌گیره
 process.stdin.resume();

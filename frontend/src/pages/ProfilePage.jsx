@@ -1,28 +1,22 @@
 //ProfilePage
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import BottomNav from '../components/BottomNav';
 import Footer from '../components/Footer';
 import { getSellerMenuItem, getSidebarItems, getBottomNavItems } from '../components/navConfig';
 import { useTheme } from '../context/ThemeContext';
+import logoBlack from '../assets/locavo-logo-black.png';
+import logoWhite from '../assets/locavo-logo-white.png';
 import "./ProfilePage.css";
-
-// TODO: اینو با import واقعی لوگوی پروژه‌ت جایگزین کن
-const logo =
-  'data:image/svg+xml;utf8,' +
-  encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none">
-      <path d="M20 3C11.7 3 5 9.7 5 18c0 11 15 19 15 19s15-8 15-19c0-8.3-6.7-15-15-15Z" fill="#2547E8"/>
-      <circle cx="20" cy="18" r="6.5" fill="#FFFFFF"/>
-    </svg>`
-  );
 
 const SUPPORT_PHONE_RAW = '+982191000000';
 const SUPPORT_PHONE_DISPLAY = '۰۲۱ - ۹۱۰۰۰۰۰۰';
 const SUPPORT_EMAIL = 'support@lokavo.ir';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_ORIGIN = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const API_BASE = `${API_ORIGIN}/api`;
 
 const getToken = () => localStorage.getItem('token');
 const getAuthUser = () => {
@@ -76,6 +70,7 @@ const IRAN_LOCATIONS = {
 const LokavoProfile = () => {
   const navigate = useNavigate();
   const { theme, toggleTheme, isDark } = useTheme();
+  const logo = isDark ? logoWhite : logoBlack;
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('delete');
@@ -135,6 +130,94 @@ const LokavoProfile = () => {
     province: 'تهران',
     city: 'تهران',
   });
+
+  // سرچ آدرس/شهر با نشان (مثل انتخاب موقعیت در صفحه‌ی افزودن کسب‌وکار)
+  const [locationSearchTerm, setLocationSearchTerm] = useState('');
+  const [locationSearchResults, setLocationSearchResults] = useState([]);
+  const [locationSearchLoading, setLocationSearchLoading] = useState(false);
+  const locationSearchDebounceRef = useRef(null);
+  const locationSearchInputRef = useRef(null);
+  const [locationDropdownStyle, setLocationDropdownStyle] = useState(null);
+
+  useEffect(() => {
+    if (!locationSearchResults.length || !locationSearchInputRef.current) {
+      setLocationDropdownStyle(null);
+      return;
+    }
+
+    const updateLocationDropdownPosition = () => {
+      const input = locationSearchInputRef.current;
+      if (!input) return;
+
+      const rect = input.getBoundingClientRect();
+      setLocationDropdownStyle({
+        position: 'fixed',
+        top: `${rect.bottom + 6}px`,
+        left: `${rect.left}px`,
+        width: `${rect.width}px`,
+        zIndex: 2147483647,
+      });
+    };
+
+    updateLocationDropdownPosition();
+    window.addEventListener('resize', updateLocationDropdownPosition);
+    window.addEventListener('scroll', updateLocationDropdownPosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updateLocationDropdownPosition);
+      window.removeEventListener('scroll', updateLocationDropdownPosition, true);
+    };
+  }, [locationSearchResults.length]);
+
+  const handleLocationSearchChange = (e) => {
+    const val = e.target.value;
+    setLocationSearchTerm(val);
+    if (locationSearchDebounceRef.current) clearTimeout(locationSearchDebounceRef.current);
+
+    if (!val.trim()) {
+      setLocationSearchResults([]);
+      return;
+    }
+
+    locationSearchDebounceRef.current = setTimeout(async () => {
+      setLocationSearchLoading(true);
+      try {
+        // مرکز جستجو رو به‌صورت تقریبی از استان انتخاب‌شده‌ی فعلی می‌گیریم
+        // تا نتایج نزدیک‌تر و مرتبط‌تر باشن (دقیقاً مثل افزودن کسب‌وکار)
+        const res = await fetch(
+          `${API_BASE}/neshan/search?term=${encodeURIComponent(val)}&lat=35.6997&lng=51.3380`
+        );
+        const data = await res.json();
+        setLocationSearchResults(data.items || data.results || []);
+      } catch (err) {
+        console.error('location search error:', err);
+        setLocationSearchResults([]);
+      } finally {
+        setLocationSearchLoading(false);
+      }
+    }, 400);
+  };
+
+  const selectLocationSearchResult = async (item) => {
+    const lat = item.location?.y;
+    const lng = item.location?.x;
+    setLocationSearchTerm(item.title || item.address || '');
+    setLocationSearchResults([]);
+
+    if (lat == null || lng == null) return;
+
+    try {
+      const res = await fetch(
+        `${API_BASE}/profile/reverse-geocode?lat=${lat}&lng=${lng}`,
+        { headers: { Authorization: `Bearer ${getToken()}` } }
+      );
+      const json = await res.json();
+      applyGeocodedLocation(json.success ? json.data : null, 'استان و شهر را دستی انتخاب کنید');
+    } catch (err) {
+      console.error(err);
+      showToast('خطا در تشخیص استان/شهر از روی این آدرس');
+    }
+  };
 
   const relativeTime = (dateStr) => {
     const diffMs = Date.now() - new Date(dateStr).getTime();
@@ -211,7 +294,7 @@ const LokavoProfile = () => {
             birthdate: u.birthdate || '',
             bio: u.bio || '',
             avatar: u.avatar,
-            avatarImage: u.avatar ? `http://localhost:5000${u.avatar}` : null,
+            avatarImage: u.avatar ? `${API_ORIGIN}${u.avatar}` : null,
             province: u.province || 'تهران',
             city: u.city || 'تهران',
             lastLoginAt: u.lastLoginAt || null,
@@ -263,19 +346,19 @@ const LokavoProfile = () => {
 
   const [timeline, setTimeline] = useState([]);
 
-useEffect(() => {
-  const token = getToken();
-  if (!token) return;
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
 
-  fetch(`${API_BASE}/activity/timeline?limit=6`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-    .then((res) => res.json())
-    .then((json) => {
-      if (json.success) setTimeline(json.data);
+    fetch(`${API_BASE}/activity/timeline?limit=6`, {
+      headers: { Authorization: `Bearer ${token}` },
     })
-    .catch((err) => console.error('خطا در دریافت تایم‌لاین:', err));
-}, []);
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success) setTimeline(json.data);
+      })
+      .catch((err) => console.error('خطا در دریافت تایم‌لاین:', err));
+  }, []);
 
   useEffect(() => {
     const token = getToken();
@@ -326,7 +409,7 @@ useEffect(() => {
       const json = await res.json();
 
       if (json.success) {
-        const avatarUrl = `http://localhost:5000${json.data.avatar}`;
+        const avatarUrl = `${API_ORIGIN}${json.data.avatar}`;
         setProfile((prev) => ({
           ...prev,
           avatar: json.data.avatar,
@@ -424,7 +507,7 @@ useEffect(() => {
           bio: u.bio || '',
           avatar: u.avatar ?? prev.avatar,
           avatarImage: u.avatar
-            ? `http://localhost:5000${u.avatar}`
+            ? `${API_ORIGIN}${u.avatar}`
             : prev.avatarImage,
           // اگر بک‌اند province/city برگردوند، آپدیت کن
           province: u.province ?? prev.province,
@@ -490,6 +573,23 @@ useEffect(() => {
     }
   };
 
+  // اعمال نتیجه‌ی reverse-geocode (چه از GPS چه از انتخاب یک نتیجه‌ی سرچ) روی فرم موقعیت
+  const applyGeocodedLocation = (data, fallbackLabel) => {
+    if (data?.province && data?.city) {
+      const { province, city } = data;
+      if (IRAN_LOCATIONS[province]) {
+        const cities = IRAN_LOCATIONS[province];
+        const matchedCity = cities.includes(city) ? city : cities[0];
+        setLocationForm({ province, city: matchedCity });
+        showToast(`موقعیت تشخیص داده شد: ${matchedCity}، ${province}`);
+        return;
+      }
+      showToast(`موقعیت تقریبی: ${city || ''} ${province || ''} (لطفاً دستی انتخاب کنید)`);
+      return;
+    }
+    showToast(fallbackLabel || 'لطفاً استان و شهر را دستی انتخاب کنید');
+  };
+
   // تشخیص موقعیت فعلی با Geolocation مرورگر
   const handleDetectLocation = () => {
     if (!navigator.geolocation) {
@@ -516,29 +616,10 @@ useEffect(() => {
 
           if (res.ok) {
             const json = await res.json();
-            if (json.success && json.data?.province && json.data?.city) {
-              const { province, city } = json.data;
-
-              // اگر استان در لیست ما هست، فرم رو آپدیت کن
-              if (IRAN_LOCATIONS[province]) {
-                const cities = IRAN_LOCATIONS[province];
-                const matchedCity = cities.includes(city) ? city : cities[0];
-
-                setLocationForm({
-                  province,
-                  city: matchedCity,
-                });
-                showToast(`موقعیت تشخیص داده شد: ${matchedCity}، ${province}`);
-              } else {
-                showToast(
-                  `موقعیت تقریبی: ${city || ''} ${province || ''} (لطفاً دستی انتخاب کنید)`
-                );
-              }
-            } else {
-              showToast(
-                `مختصات دریافت شد (${latitude.toFixed(4)}, ${longitude.toFixed(4)}) — لطفاً استان و شهر را دستی انتخاب کنید`
-              );
-            }
+            applyGeocodedLocation(
+              json.success ? json.data : null,
+              `مختصات دریافت شد (${latitude.toFixed(4)}, ${longitude.toFixed(4)}) — لطفاً استان و شهر را دستی انتخاب کنید`
+            );
           } else {
             // اگر endpoint وجود نداشت
             showToast(
@@ -631,6 +712,7 @@ useEffect(() => {
       closeModal();
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      localStorage.removeItem('activeBusinessId');
       navigate('/auth', { replace: true });
       return;
     }
@@ -657,7 +739,8 @@ useEffect(() => {
         closeModal();
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        navigate('/login', { replace: true });
+        localStorage.removeItem('activeBusinessId');
+        navigate('/auth', { replace: true });
       } else {
         showToast(json.message || 'خطا در حذف حساب');
       }
@@ -691,7 +774,7 @@ useEffect(() => {
   if (loading) {
     return (
       <div
-        className="app-shell"
+        className="lokavo-profile app-shell"
         dir="rtl"
         lang="fa"
         style={{
@@ -707,7 +790,7 @@ useEffect(() => {
   }
 
   return (
-    <div className="app-shell" dir="rtl" lang="fa">
+    <div className="lokavo-profile app-shell" dir="rtl" lang="fa">
       {/* ICON SPRITE */}
       <svg width="0" height="0" style={{ position: 'absolute' }}>
         <defs>
@@ -788,6 +871,7 @@ useEffect(() => {
                 <use href="#i-chevron" />
               </svg>
             </button>
+            <img src={logo} alt="لوکاوو" className="topbar-logo" />
             <div className="page-title">پروفایل من</div>
           </div>
           <div className="topbar-actions">
@@ -917,7 +1001,10 @@ useEffect(() => {
             </div>
 
             {/* نظرات من */}
-            <div className="stat-card card">
+            <div
+              className="stat-card card"
+              onClick={() => navigate('/reviews')}
+            >
               <div className="si-icon">
                 <svg>
                   <use href="#i-star" />
@@ -927,7 +1014,11 @@ useEffect(() => {
               <div className="si-label">نظرات من</div>
             </div>
 
-            <div className="stat-card card">
+            <div
+              className="stat-card card"
+              onClick={() => navigate('/recent-views')}
+              style={{ cursor: 'pointer' }}
+            >
               <div className="si-icon">
                 <svg>
                   <use href="#i-eye" />
@@ -937,21 +1028,23 @@ useEffect(() => {
               <div className="si-label">بازدید اخیر</div>
             </div>
 
-            <div
-              className="stat-card card"
-              onClick={() => navigate('/seller-dashboard')}
-            >
-              <div className="si-icon">
-                <svg>
-                  <use href="#i-store" />
-                </svg>
-              </div>
-              <div className="si-num">{profile.stats?.businesses ?? 0}</div>
-              <div className="si-label">کسب‌وکارهای من</div>
-            </div>
+<div
+  className="stat-card card"
+onClick={() => navigate('/seller/dashboard?tab=businesses')}
+  style={{ cursor: 'pointer' }}
+>
+  <div className="si-icon">
+    <svg>
+      <use href="#i-store" />
+    </svg>
+  </div>
+  <div className="si-num">{profile.stats?.businesses ?? 0}</div>
+  <div className="si-label">کسب‌وکارهای من</div>
+</div>
           </section>
 
           <div className="overview-grid">
+            {/* ========== ستون اصلی ========== */}
             <div className="main-col">
               {/* ACCOUNT SETTINGS */}
               <section className="section card">
@@ -1087,6 +1180,41 @@ useEffect(() => {
                 </div>
 
                 <div className="loc-form">
+                  <div className="field" style={{ position: 'relative' }}>
+                    <label>جستجوی آدرس یا شهر (نشان)</label>
+                    <input
+                      ref={locationSearchInputRef}
+                      type="text"
+                      value={locationSearchTerm}
+                      onChange={handleLocationSearchChange}
+                      placeholder="مثلاً: اصفهان، میدان نقش جهان"
+                      autoComplete="off"
+                    />
+                    {locationSearchLoading && (
+                      <div className="loc-search-hint">در حال جستجو...</div>
+                    )}
+                    {locationSearchResults.length > 0 && locationDropdownStyle &&
+                      createPortal(
+                        <div
+                          className="loc-search-results"
+                          style={locationDropdownStyle}
+                        >
+                          {locationSearchResults.map((item, idx) => (
+                            <button
+                              type="button"
+                              key={idx}
+                              className="loc-search-result-item"
+                              onClick={() => selectLocationSearchResult(item)}
+                            >
+                              <b>{item.title}</b>
+                              {item.address && <span>{item.address}</span>}
+                            </button>
+                          ))}
+                        </div>,
+                        document.body
+                      )}
+                  </div>
+
                   <div className="field">
                     <label>استان</label>
                     <select
@@ -1156,7 +1284,11 @@ useEffect(() => {
               <section className="section card" ref={activityRef}>
                 <div className="section-head">
                   <div className="sh-text">
-                    <div className="sh-ico"><svg><use href="#i-history" /></svg></div>
+                    <div className="sh-ico">
+                      <svg>
+                        <use href="#i-history" />
+                      </svg>
+                    </div>
                     <div>
                       <h2>فعالیت</h2>
                       <p>نگاهی سریع به کارهایی که اخیراً انجام داده‌اید</p>
@@ -1164,7 +1296,9 @@ useEffect(() => {
                   </div>
                 </div>
                 <div className="login-row">
-                  <svg><use href="#i-clock" /></svg>
+                  <svg>
+                    <use href="#i-clock" />
+                  </svg>
                   <div>
                     <b>
                       {profile.lastLoginAt
@@ -1182,9 +1316,13 @@ useEffect(() => {
                       <span
                         key={i}
                         className="chip"
-                        onClick={() => navigate(`/search?q=${encodeURIComponent(q)}`)}
+                        onClick={() =>
+                          navigate(`/search?q=${encodeURIComponent(q)}`)
+                        }
                       >
-                        <svg><use href="#i-search" /></svg>
+                        <svg>
+                          <use href="#i-search" />
+                        </svg>
                         {q}
                       </span>
                     ))}
@@ -1196,10 +1334,17 @@ useEffect(() => {
                       <div
                         className="rv-card"
                         key={v.businessId}
-                        onClick={() => navigate(`/business/${v.businessId}`)}
+                        onClick={() => navigate(`/businesses/${v.businessId}`)}
                       >
-                        <div className="rv-thumb" style={{ background: 'linear-gradient(135deg,#2547E8,#5271FF)' }}>
-                          <svg><use href="#i-store" /></svg>
+                        <div
+                          className="rv-thumb"
+                          style={{
+                            background: 'linear-gradient(135deg,#2547E8,#5271FF)',
+                          }}
+                        >
+                          <svg>
+                            <use href="#i-store" />
+                          </svg>
                         </div>
                         <div className="rv-body">
                           <b>{v.name}</b>
@@ -1208,26 +1353,100 @@ useEffect(() => {
                       </div>
                     ))
                   ) : (
-                    <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>هنوز بازدیدی ثبت نشده است.</p>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                      هنوز بازدیدی ثبت نشده است.
+                    </p>
                   )}
                 </div>
                 <div className="timeline">
-  {timeline.length > 0 ? (
-    timeline.map((t) => (
-      <div className="t-item" key={t.id}>
-        <b>{t.message}</b>
-        <span>{relativeTime(t.createdAt)}</span>
-      </div>
-    ))
-  ) : (
-    <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-      هنوز فعالیتی ثبت نشده است.
-    </p>
-  )}
-</div>
+                  {timeline.length > 0 ? (
+                    timeline.map((t) => (
+                      <div className="t-item" key={t.id}>
+                        <b>{t.message}</b>
+                        <span>{relativeTime(t.createdAt)}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                      هنوز فعالیتی ثبت نشده است.
+                    </p>
+                  )}
+                </div>
+              </section>
+            </div>
+
+            {/* ========== ستون کناری ========== */}
+            <div className="side-col">
+              {/* پشتیبانی */}
+              <section className="section card">
+                <div className="section-head">
+                  <div className="sh-text">
+                    <div className="sh-ico">
+                      <svg>
+                        <use href="#i-headset" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h2>پشتیبانی</h2>
+                      <p>ما اینجا هستیم تا کمکتان کنیم</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="support-grid">
+                  <button
+                    className="support-item"
+                    onClick={() => {
+                      setInfoModalType('faq');
+                      setInfoModalOpen(true);
+                    }}
+                  >
+                    <div className="si-ico">
+                      <svg>
+                        <use href="#i-help" />
+                      </svg>
+                    </div>
+                    <b>سوالات متداول</b>
+                  </button>
+                  <button
+                    className="support-item"
+                    onClick={() => setContactModalOpen(true)}
+                  >
+                    <div className="si-ico">
+                      <svg>
+                        <use href="#i-headset" />
+                      </svg>
+                    </div>
+                    <b>تماس با پشتیبانی</b>
+                  </button>
+                  <button
+                    className="support-item"
+                    onClick={() => setReportModalOpen(true)}
+                  >
+                    <div className="si-ico">
+                      <svg>
+                        <use href="#i-flag" />
+                      </svg>
+                    </div>
+                    <b>گزارش مشکل</b>
+                  </button>
+                  <button
+                    className="support-item"
+                    onClick={() => {
+                      setInfoModalType('about');
+                      setInfoModalOpen(true);
+                    }}
+                  >
+                    <div className="si-ico">
+                      <svg>
+                        <use href="#i-info" />
+                      </svg>
+                    </div>
+                    <b>درباره اپلیکیشن</b>
+                  </button>
+                </div>
               </section>
 
-              {/* ACCOUNT ACTIONS */}
+              {/* خروج و حذف حساب */}
               <section className="section card">
                 <div className="section-head">
                   <div className="sh-text">
@@ -1668,7 +1887,7 @@ useEffect(() => {
               <h3 style={{ marginBottom: 4 }}>{profile.fullName}</h3>
               <div
                 style={{
-                  fontSize: '12.5px',
+                  fontSize: '13px',
                   color: 'var(--text-muted)',
                   fontWeight: 600,
                 }}
@@ -1683,7 +1902,7 @@ useEffect(() => {
               تایید شده
             </span>
             {profile.bio && (
-              <p style={{ margin: 0, fontSize: '12.5px', lineHeight: 1.8 }}>
+              <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.8 }}>
                 {profile.bio}
               </p>
             )}

@@ -9,7 +9,7 @@ import { useTheme } from "../context/ThemeContext";
 import logoBlack from "../assets/locavo-logo-black.png";
 import logoWhite from "../assets/locavo-logo-white.png";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 const getToken = () => localStorage.getItem("token");
 const getAuthUser = () => {
@@ -271,7 +271,7 @@ export default function FavoritesPage() {
 
             {/* حالت لودینگ */}
             {loading && (
-              <div style={{ textAlign: "center", padding: "40px" }}>در حال بارگذاری...</div>
+              <div className="lk-inline-loading"><span className="lk-spinner" />در حال بارگذاری...</div>
             )}
 
             {/* حالت خطا */}
@@ -289,7 +289,7 @@ export default function FavoritesPage() {
                       <div
                         className="fav-card"
                         key={bm.bookmarkId}
-                        onClick={() => navigate(`/business/${shop.id}`)}
+                        onClick={() => navigate(`/businesses/${shop.id}`)}
                         style={{ cursor: "pointer" }}
                       >
                         <button
@@ -356,9 +356,9 @@ export default function FavoritesPage() {
               )
             )}
           </div>
-          <Footer />
         </div>
       </div>
+      <Footer />
       <BottomNav items={BOTTOM_NAV_ITEMS} activeNav={activeNav} onNavClick={handleNavClick} />
     </div>
   );

@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
+import './tokens.css'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -8,3 +9,12 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <App />
   </React.StrictMode>,
 )
+
+// ثبت سرویس‌ورکر برای قابلیت نصب اپ (Add to Home Screen) و پشتیبانی آفلاین حداقلی
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      console.error('SW registration failed:', err);
+    });
+  });
+}

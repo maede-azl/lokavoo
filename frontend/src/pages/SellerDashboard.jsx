@@ -1,14 +1,35 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import './SellerDashboard.css';
 import logoBlack from "../assets/locavo-logo-black.png";
 import logoWhite from "../assets/locavo-logo-white.png";
 import { createPortal } from 'react-dom';
-import api from '../api';
-import SubscriptionCard from '../components/SubscriptionCard';
+import api, { API_URL } from '../api';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import Footer from '../components/Footer';
+
 
 const HOME_PATH = '/';
 const ADD_BUSINESS_PATH = '/add-business';
+const EDIT_BUSINESS_PATH = '/edit-business'; // اضافه شد
+
+// اگر متن پیام به‌صورت خراب (هر حرف در یک خط جدا) ذخیره/دریافت شده باشد،
+// این تابع آن را به یک متن یکپارچه و سالم تبدیل می‌کند.
+function normalizeMessageText(raw) {
+  if (Array.isArray(raw)) return raw.join('');
+  if (typeof raw !== 'string') return raw ?? '';
+
+  const lines = raw.split('\n');
+  const looksBroken =
+    lines.length > 1 &&
+    lines.every((line) => line.trim().length <= 1);
+
+  if (looksBroken) {
+    return lines.join('').trim();
+  }
+
+  return raw;
+}
+
 
 const TITLES = {
   overview: ['نمای کلی', 'خلاصه‌ای از وضعیت مغازه'],
@@ -23,6 +44,13 @@ const TITLES = {
 const PALETTE = ['#2547E8', '#0D9488', '#EC4899', '#B45309', '#7C3AED', '#0891B2'];
 const colorFor = (id) => PALETTE[id % PALETTE.length];
 const initials = (name) => (name || '؟').trim().split(' ')[0].slice(0, 2);
+
+const getFileUrl = (filePath) => {
+  if (!filePath) return null;
+  if (/^https?:\/\//i.test(filePath)) return filePath;
+  const baseUrl = API_URL.replace(/\/api$/, '');
+  return `${baseUrl}${filePath.startsWith('/') ? '' : '/'}${filePath}`;
+};
 
 function statusPillClass(status) {
   if (status === 'موجود') return 'status-pill new';
@@ -39,6 +67,7 @@ const NAV_ITEMS = [
   { key: 'settings', label: 'تنظیمات فروشگاه', icon: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .3 1.8l.1.1-2.8 2.8-.1-.1a1.65 1.65 0 0 0-1.8-.3 1.65 1.65 0 0 0-1 1.5v.1h-4v-.1a1.65 1.65 0 0 0-1-1.5 1.65 1.65 0 0 0-1.8.3l-.1.1-2.8-2.8.1-.1a1.65 1.65 0 0 0 .3-1.8 1.65 1.65 0 0 0-1.5-1H3v-4h.1a1.65 1.65 0 0 0 1.5-1 1.65 1.65 0 0 0-.3-1.8l-.1-.1 2.8-2.8.1.1a1.65 1.65 0 0 0 1.8.3 1.65 1.65 0 0 0 1-1.5V3h4v.1a1.65 1.65 0 0 0 1 1.5 1.65 1.65 0 0 0 1.8-.3l.1-.1 2.8 2.8-.1.1a1.65 1.65 0 0 0-.3 1.8 1.65 1.65 0 0 0 1.5 1h.1v4h-.1a1.65 1.65 0 0 0-1.5 1Z" /></> },
   { key: 'businesses', label: 'کسب‌وکارهای من', icon: <><path d="M4 21V5l8-3 8 3v16M2 21h20M8 9h2M14 9h2M8 13h2M14 13h2" /></> },
 ];
+
 
 const emptyProductForm = {
   name: '',
@@ -57,7 +86,7 @@ function getInitialTheme() {
   try {
     const fromStorage = localStorage.getItem('theme') || localStorage.getItem('mode') || localStorage.getItem('data-mode');
     if (fromStorage === 'dark' || fromStorage === 'light') return fromStorage;
-  } catch (_) { }
+  } catch (_) {}
   return 'light';
 }
 
@@ -109,12 +138,15 @@ export default function SellerDashboard() {
   const [productFilter, setProductFilter] = useState('');
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [productForm, setProductForm] = useState(emptyProductForm);
-  const [activePage, setActivePage] = useState('overview');
+const [activePage, setActivePage] = useState(() => {
+  const tab = new URLSearchParams(window.location.search).get('tab');
+  return tab === 'businesses' ? 'businesses' : 'overview';
+});
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const [showToast, setShowToast] = useState(false);
   const [theme, setTheme] = useState(getInitialTheme);
-  const [currentUser, setCurrentUser] = useState(null);
+const [currentUser, setCurrentUser] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [activeConvoId, setActiveConvoId] = useState(null);
@@ -122,25 +154,48 @@ export default function SellerDashboard() {
   const [msgSearch, setMsgSearch] = useState('');
   const [draft, setDraft] = useState('');
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  function handleLogout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('activeBusinessId');
+    toast('خروج انجام شد');
+    navigate('/auth');
+  }
+  useEffect(() => {
+  const tab = searchParams.get('tab');
+  if (tab === 'businesses') {
+    setActivePage('businesses');
+  }
+  const paymentStatus = searchParams.get('payment');
+  if (paymentStatus === 'success') {
+    toast('پرداخت با موفقیت انجام شد، اشتراک شما فعال شد');
+  } else if (paymentStatus === 'failed') {
+    const reason = searchParams.get('reason');
+    toast(reason ? `پرداخت ناموفق: ${reason}` : 'پرداخت ناموفق بود');
+  }
+}, [searchParams]);
 
   const [myBusinesses, setMyBusinesses] = useState([]);
   const [businessesLoading, setBusinessesLoading] = useState(true);
-  const [activeBusinessId, setActiveBusinessId] = useState(() => {
-    try {
-      const saved = localStorage.getItem("activeBusinessId");
-      return saved ? Number(saved) : null;
-    } catch {
-      return null;
-    }
-  });
-  const selectBusiness = (id) => {
-    const numId = id == null ? null : Number(id);
-    setActiveBusinessId(numId);
-    try {
-      if (numId) localStorage.setItem("activeBusinessId", String(numId));
-      else localStorage.removeItem("activeBusinessId");
-    } catch (_) { }
-  };
+const [activeBusinessId, setActiveBusinessId] = useState(() => {
+  try {
+    const saved = localStorage.getItem("activeBusinessId");
+    return saved ? Number(saved) : null;
+  } catch {
+    return null;
+  }
+});
+const selectBusiness = (id) => {
+  const numId = id == null ? null : Number(id);
+  setActiveBusinessId(numId);
+  try {
+    if (numId) localStorage.setItem("activeBusinessId", String(numId));
+    else localStorage.removeItem("activeBusinessId");
+  } catch (_) {}
+};
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsMeta, setReviewsMeta] = useState({ count: 0, average: 0 });
@@ -164,32 +219,40 @@ export default function SellerDashboard() {
     avgRating: 0,
     unreadMessages: 0,
   });
-  const [reports, setReports] = useState({
-    monthlyViews: 0,
-    profileViews: 0,
-    productClicks: 0,
-    visibilityScore: 0,
-    weeklyViews: [],
-  });
+const [reports, setReports] = useState({
+  monthlyViews: 0,
+  profileViews: 0,
+  productClicks: 0,
+  visibilityScore: 0,
+  weeklyViews: [],
+});
+const [subscriptionPlans, setSubscriptionPlans] = useState([]);
+const [mySubscription, setMySubscription] = useState(null);
+const [billingCycle, setBillingCycle] = useState('monthly');
+const [subscribingPlanId, setSubscribingPlanId] = useState(null);
+const [promoTypes, setPromoTypes] = useState([]);
+const [myPromos, setMyPromos] = useState([]);
+const [requestingPromoType, setRequestingPromoType] = useState(null);
   const [editingProduct, setEditingProduct] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [deleteBusinessId, setDeleteBusinessId] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
 
   const [switches, setSwitches] = useState({ showPhone: true, allowMessages: true, showReviews: true });
+  const [settingsSaving, setSettingsSaving] = useState(false);
   const [contactInfo, setContactInfo] = useState({
     phone: '',
     website: '',
     address: '',
   });
 
-  const businessDetailPath = `/business/${activeBusinessId}`;
+  const businessDetailPath = `/businesses/${activeBusinessId}`;
   const [planMode, setPlanMode] = useState('monthly');
-  const [plans, setPlans] = useState([]);
-  const [currentSubscription, setCurrentSubscription] = useState(null);
-  const [subscribing, setSubscribing] = useState(false);
   const toastTimer = useRef(null);
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const lastMsgCountRef = useRef(0);
+  const lastActiveConvoRef = useRef(null);
   const textareaRef = useRef(null);
 
   // همگام‌سازی تم
@@ -200,7 +263,7 @@ export default function SellerDashboard() {
       localStorage.setItem('theme', theme);
       localStorage.setItem('mode', theme);
       localStorage.setItem('data-mode', theme);
-    } catch (_) { }
+    } catch (_) {}
   }, [theme]);
 
   useEffect(() => {
@@ -231,7 +294,15 @@ export default function SellerDashboard() {
   }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ block: 'end' });
+    const activeCount =
+      conversations.find((c) => c.id === activeConvoId)?.messages?.length || 0;
+    const convoChanged = lastActiveConvoRef.current !== activeConvoId;
+
+    if (convoChanged || activeCount !== lastMsgCountRef.current) {
+      lastActiveConvoRef.current = activeConvoId;
+      lastMsgCountRef.current = activeCount;
+      messagesEndRef.current?.scrollIntoView({ block: 'end' });
+    }
   }, [activeConvoId, conversations]);
 
   useEffect(() => {
@@ -252,6 +323,7 @@ export default function SellerDashboard() {
 
   useEffect(() => {
     loadMyBusinesses();
+    loadCurrentUser();
   }, []);
 
   useEffect(() => {
@@ -271,25 +343,20 @@ export default function SellerDashboard() {
     loadStats(activeBusinessId);
     loadReports(activeBusinessId);
     loadSettings(activeBusinessId);
-    loadCurrentUser();
-    loadMySubscription(activeBusinessId);
+    loadSubscriptionData(activeBusinessId);
+    loadPromoData(activeBusinessId);
 
     // هر ۲۰ ثانیه نوتیف و پیام‌ها را رفرش کن (وقتی تب فعال است)
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         loadNotifications(activeBusinessId);
-        loadConversations(activeBusinessId);
+        loadConversations(activeBusinessId, true);
         loadStats(activeBusinessId);
       }
     }, 20000);
 
     return () => clearInterval(interval);
   }, [activeBusinessId]);
-
-  useEffect(() => {
-    loadPlans();
-  }, []);
-
   function go(page) {
     setActivePage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -313,6 +380,11 @@ export default function SellerDashboard() {
         id: b.id,
         name: b.name || 'بدون نام',
         cat: b.category?.name || b.status || 'کسب‌وکار',
+        image: getFileUrl(
+          b.primaryImage ||
+          b.images?.find((img) => img.is_primary)?.image_url ||
+          b.images?.[0]?.image_url
+        ),
         avatar: (b.name || 'م')[0],
         color: colorFor(b.id),
         status: b.status,
@@ -333,7 +405,7 @@ export default function SellerDashboard() {
         const nextId = normalized[0].id;
         try {
           localStorage.setItem('activeBusinessId', String(nextId));
-        } catch (_) { }
+        } catch (_) {}
         return nextId;
       });
     } catch (err) {
@@ -343,33 +415,33 @@ export default function SellerDashboard() {
       setBusinessesLoading(false);
     }
   };
-
-  const loadCurrentUser = async () => {
-    try {
-      // اول از localStorage (اگه موقع لاگین ذخیره کردی)
-      const cached = localStorage.getItem('user');
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          if (parsed?.name || parsed?.phone) {
-            setCurrentUser(parsed);
-          }
-        } catch (_) { }
-      }
-
-      // بعد از API تا همیشه به‌روز باشه
-      const res = await api.auth.getMe();
-      const user = res?.data || res?.user || res;
-      if (user) {
-        setCurrentUser(user);
-        try {
-          localStorage.setItem('user', JSON.stringify(user));
-        } catch (_) { }
-      }
-    } catch (err) {
-      console.error('خطا در دریافت اطلاعات کاربر:', err);
+  
+const loadCurrentUser = async () => {
+  try {
+    // اول از localStorage (اگه موقع لاگین ذخیره کردی)
+    const cached = localStorage.getItem('user');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed?.name || parsed?.phone) {
+          setCurrentUser(parsed);
+        }
+      } catch (_) {}
     }
-  };
+
+    // بعد از API تا همیشه به‌روز باشه
+    const res = await api.auth.getMe();
+    const user = res?.data || res?.user || res;
+    if (user) {
+      setCurrentUser(user);
+      try {
+        localStorage.setItem('user', JSON.stringify(user));
+      } catch (_) {}
+    }
+  } catch (err) {
+    console.error('خطا در دریافت اطلاعات کاربر:', err);
+  }
+};
   // ---------- محصولات ----------
   const loadProducts = async (businessId) => {
     if (!businessId) {
@@ -384,11 +456,11 @@ export default function SellerDashboard() {
         let status = 'موجود';
         if (p.active === false || p.stock === 0) status = 'ناموجود';
         else if (p.stock <= 2) status = 'رو به اتمام';
-        const imageUrl = p.image_url
-          ? p.image_url.startsWith('http')
-            ? p.image_url
-            : `http://localhost:5000${p.image_url.startsWith('/') ? '' : '/'}${p.image_url}`
-          : null;
+ const imageUrl = p.image_url
+  ? p.image_url.startsWith('http')
+    ? p.image_url
+    : `${API_URL.replace(/\/api\/?$/, '')}${p.image_url.startsWith('/') ? '' : '/'}${p.image_url}`
+  : null;
         return {
           id: p.id,
           name: p.name || 'بدون نام',
@@ -508,7 +580,6 @@ export default function SellerDashboard() {
       toast(err.message || 'خطا در ذخیره محصول');
     }
   }
-
   function confirmDeleteProduct(id) {
     setDeleteConfirmId(id);
   }
@@ -526,6 +597,30 @@ export default function SellerDashboard() {
     }
   }
 
+  function confirmDeleteBusiness(id) {
+    setDeleteBusinessId(id);
+  }
+
+  async function deleteBusiness() {
+    if (!deleteBusinessId) return;
+
+    try {
+      await api.business.deleteBusiness(deleteBusinessId);
+
+      setMyBusinesses((prev) => prev.filter((b) => b.id !== deleteBusinessId));
+
+      if (activeBusinessId === deleteBusinessId) {
+        selectBusiness(null);
+      }
+
+      toast('کسب‌وکار با موفقیت حذف شد');
+      setDeleteBusinessId(null);
+    } catch (err) {
+      console.error('خطا در حذف کسب‌وکار:', err);
+      toast(err.message || 'خطا در حذف کسب‌وکار');
+    }
+  }
+
   // ---------- آمار ----------
   const loadStats = async (businessId) => {
     try {
@@ -535,85 +630,89 @@ export default function SellerDashboard() {
       console.error('خطا در دریافت آمار:', err);
     }
   };
-  const loadReports = async (businessId) => {
-    if (!businessId) return;
-    try {
-      const res = await api.business.getDashboardReports(businessId);
-      setReports(
-        res?.data || {
-          monthlyViews: 0,
-          profileViews: 0,
-          productClicks: 0,
-          visibilityScore: 0,
-          weeklyViews: [],
-        }
-      );
-    } catch (err) {
-      console.error('خطا در دریافت گزارشات:', err);
-    }
-  };
-
-  //-------------- اشتراک ها ------------//
-  const loadPlans = async () => {
-    try {
-      const res = await api.subscription.getPlans();
-      setPlans(res?.data || []);
-    } catch (err) {
-      console.error('خطا در دریافت پلن‌ها:', err);
-    }
-  };
-  const loadMySubscription = async (businessId) => {
+const loadReports = async (businessId) => {
+  if (!businessId) return;
   try {
-    const res = await api.subscription.getMySubscription(businessId);
-    console.log('=== پاسخ کامل getMySubscription ===');
-    console.log(res);
-    console.log('data:', res.data);
-    setCurrentSubscription(res.data);
-  } catch (error) {
-    console.error('خطا در loadMySubscription:', error);
+    const res = await api.business.getDashboardReports(businessId);
+    setReports(
+      res?.data || {
+        monthlyViews: 0,
+        profileViews: 0,
+        productClicks: 0,
+        visibilityScore: 0,
+        weeklyViews: [],
+      }
+    );
+  } catch (err) {
+    console.error('خطا در دریافت گزارشات:', err);
   }
 };
 
-  const handleSubscribe = async (planKey) => {
-    if (!activeBusinessId) {
-      toast('ابتدا یک مغازه انتخاب کنید');
+// ---------- اشتراک ----------
+const loadSubscriptionData = async (businessId) => {
+  if (!businessId) return;
+  try {
+    const [plansRes, mySubRes] = await Promise.all([
+      api.business.getSubscriptionPlans(),
+      api.business.getMySubscription(businessId),
+    ]);
+    setSubscriptionPlans(plansRes?.data || []);
+    setMySubscription(mySubRes?.data || null);
+  } catch (err) {
+    console.error('خطا در دریافت اطلاعات اشتراک:', err);
+  }
+};
+
+const handleSubscribe = async (planId) => {
+  if (!activeBusinessId) return;
+  setSubscribingPlanId(planId);
+  try {
+    const res = await api.business.initiateSubscriptionPayment(activeBusinessId, planId);
+    if (res?.success && res?.redirectUrl) {
+      window.location.href = res.redirectUrl;
       return;
     }
+    toast(res?.message || 'خطا در اتصال به درگاه پرداخت');
+  } catch (err) {
+    toast(err?.message || 'درگاه پرداخت هنوز متصل نشده است');
+  } finally {
+    setSubscribingPlanId(null);
+  }
+};
 
-    const plan = getPlan(planKey);
-    if (!plan) {
-      toast('پلن پیدا نشد');
-      return;
-    }
+// ---------- تبلیغات ----------
+const loadPromoData = async (businessId) => {
+  if (!businessId) return;
+  try {
+    const [typesRes, myPromosRes] = await Promise.all([
+      api.business.getPromoTypes(),
+      api.business.getMyPromos(businessId),
+    ]);
+    setPromoTypes(typesRes?.data || []);
+    setMyPromos(myPromosRes?.data || []);
+  } catch (err) {
+    console.error('خطا در دریافت اطلاعات تبلیغات:', err);
+  }
+};
 
-    // نام‌های تمیز برای نمایش
-    const displayNames = {
-      basic: 'پایه',
-      pro: 'حرفه‌ای',
-      pro_plus: 'حرفه‌ای پلاس',
-    };
-
-    const displayName = displayNames[planKey] || plan.name;
-
-    try {
-      setSubscribing(true);
-
-      const res = await api.subscription.subscribe(activeBusinessId, plan.id);
-      setCurrentSubscription(res?.data || { plan: { key: planKey }, status: 'active' });
-      toast(`اشتراک «${displayName}» با موفقیت فعال شد`);
-    } catch (err) {
-      console.error(err);
-      toast(err.message || 'خطا در فعال‌سازی اشتراک');
-    } finally {
-      setSubscribing(false);
-    }
-  };
-
+const handleRequestPromo = async (type) => {
+  if (!activeBusinessId) return;
+  setRequestingPromoType(type);
+  try {
+    await api.business.requestPromo(activeBusinessId, type);
+    toast('درخواست ثبت شد و در انتظار بررسی ادمین است');
+    loadPromoData(activeBusinessId);
+  } catch (err) {
+    toast(err?.message || 'خطا در ثبت درخواست تبلیغ');
+  } finally {
+    setRequestingPromoType(null);
+  }
+};
   // ---------- پیام‌ها ----------
-  const loadConversations = async (businessId) => {
+  const loadConversations = async (businessId, silent = false) => {
     if (!businessId) return;
     try {
-      setMessagesLoading(true);
+      if (!silent) setMessagesLoading(true);
       const res = await api.business.getConversations(businessId);
       const list = (res?.data || []).map((c) => ({
         id: c.id,
@@ -623,7 +722,7 @@ export default function SellerDashboard() {
         time: formatRelativeTime(c.updated_at),
         messages: (c.messages || []).map((m) => ({
           from: m.sender === 'me' ? 'out' : 'in',
-          text: m.text,
+          text: normalizeMessageText(m.text),
           time: formatTime(m.created_at),
           rawTime: m.created_at,
         })),
@@ -634,10 +733,12 @@ export default function SellerDashboard() {
       }
     } catch (err) {
       console.error('خطا در دریافت پیام‌ها:', err);
-      toast('خطا در دریافت پیام‌ها');
-      setConversations([]);
+      if (!silent) {
+        toast('خطا در دریافت پیام‌ها');
+        setConversations([]);
+      }
     } finally {
-      setMessagesLoading(false);
+      if (!silent) setMessagesLoading(false);
     }
   };
 
@@ -651,7 +752,7 @@ export default function SellerDashboard() {
     );
     setMobileChatOpen(true);
     setDraft('');
-    api.business.markConversationRead(id).catch(() => { });
+    api.business.markConversationRead(id).catch(() => {});
   }
 
   function closeChatMobile() {
@@ -667,11 +768,11 @@ export default function SellerDashboard() {
         prev.map((c) =>
           c.id === activeConvoId
             ? {
-              ...c,
-              messages: [...c.messages, { from: 'out', text, time: 'اکنون' }],
-              time: 'اکنون',
-              unread: 0,
-            }
+                ...c,
+                messages: [...c.messages, { from: 'out', text, time: 'اکنون' }],
+                time: 'اکنون',
+                unread: 0,
+              }
             : c
         )
       );
@@ -816,6 +917,7 @@ export default function SellerDashboard() {
     return () => window.removeEventListener('resize', onResize);
   }, [notifOpen, isMobileTopbar]);
 
+
   async function markNotifRead(id) {
     try {
       await api.business.markNotificationRead(id);
@@ -854,13 +956,14 @@ export default function SellerDashboard() {
       if (b) {
         setContactInfo({
           phone: b.phone || '',
-          website: '',
+          website: b.website || '',
           address: b.address || '',
         });
         setSwitches((prev) => ({
           ...prev,
+          showPhone: b.showPhone ?? true,
           allowMessages: b.notif_message ?? true,
-          showReviews: b.notif_review ?? false,
+          showReviews: b.notif_review ?? true,
         }));
       }
     } catch (err) {
@@ -873,21 +976,46 @@ export default function SellerDashboard() {
   }
 
   async function saveSettings() {
-    if (!activeBusinessId) {
-      toast('ابتدا یک مغازه انتخاب کنید');
+    if (!activeBusinessId || settingsSaving) {
+      if (!activeBusinessId) toast('ابتدا یک مغازه انتخاب کنید');
       return;
     }
+
+    setSettingsSaving(true);
     try {
-      await api.business.updateBusinessSettings(activeBusinessId, {
-        phone: contactInfo.phone,
-        address: contactInfo.address,
-        notif_message: switches.allowMessages,
-        notif_review: switches.showReviews,
+      const result = await api.business.updateBusinessSettings(activeBusinessId, {
+        phone: contactInfo.phone?.trim() || null,
+        website: contactInfo.website?.trim() || null,
+        address: contactInfo.address?.trim() || null,
+        showPhone: !!switches.showPhone,
+        notif_message: !!switches.allowMessages,
+        notif_review: !!switches.showReviews,
       });
+
+      // پاسخ سرور منبع حقیقت است؛ بلافاصله فرم را با مقدار ذخیره‌شده همگام کن.
+      const b = result?.data;
+      if (b) {
+        setContactInfo({
+          phone: b.phone || '',
+          website: b.website || '',
+          address: b.address || '',
+        });
+        setSwitches((prev) => ({
+          ...prev,
+          showPhone: b.showPhone ?? true,
+          allowMessages: b.notif_message ?? true,
+          showReviews: b.notif_review ?? true,
+        }));
+      } else {
+        await loadSettings(activeBusinessId);
+      }
+
       toast('تنظیمات با موفقیت ذخیره شد');
     } catch (err) {
-      console.error(err);
+      console.error('خطا در ذخیره تنظیمات:', err);
       toast(err.message || 'خطا در ذخیره تنظیمات');
+    } finally {
+      setSettingsSaving(false);
     }
   }
 
@@ -905,26 +1033,13 @@ export default function SellerDashboard() {
 
 
   const activeProductsCount = products.filter((p) => p.status === 'موجود').length;
-  const filteredProducts = products.filter((p) =>
-    p.name.includes(productFilter || '')
-  );
-
-  const formatPrice = (n) => (n || 0).toLocaleString('fa-IR');
-
-  const getPlan = (key) =>
-    plans.find((p) => p.key === key && p.billing_cycle === planMode);
-
-  console.log('plans from state:', plans);
-  console.log('pro plan found:', getPlan('pro'));
-
-  const prices = {
-    start: formatPrice(getPlan('basic')?.price ?? 0),
-    growth: formatPrice(getPlan('pro')?.price ?? 0),
-    plus: formatPrice(getPlan('pro_plus')?.price ?? 0),
-    unit: planMode === 'monthly' ? 'تومان / ماه' : 'تومان / سال',
-  };
-
-  const currentPlanKey = currentSubscription?.plan?.key || 'basic';
+const filteredProducts = products.filter((p) =>
+  p.name.includes(productFilter || '')
+);
+  const prices =
+    planMode === 'monthly'
+      ? { start: '۱۹۹٬۰۰۰', growth: '۳۹۹٬۰۰۰', plus: '۶۹۹٬۰۰۰', unit: 'تومان / ماه' }
+      : { start: '۱٬۹۹۰٬۰۰۰', growth: '۳٬۹۹۰٬۰۰۰', plus: '۶٬۹۹۰٬۰۰۰', unit: 'تومان / سال' };
 
   return (
     <div className="seller-dashboard-page" data-mode={theme}>
@@ -959,25 +1074,6 @@ export default function SellerDashboard() {
         }
         .seller-dashboard-page {
           min-height: 100%;
-          display: flex;
-          flex-direction: column;
-        }
-        .seller-dashboard-page .app-shell {
-          flex: 1 0 auto;
-          min-height: 0;
-        }
-        .seller-dashboard-page + footer,
-        .seller-dashboard-page ~ footer,
-        body > footer,
-        #root > footer,
-        .app-footer,
-        .site-footer,
-        footer.footer {
-          display: block !important;
-          visibility: visible !important;
-          opacity: 1 !important;
-          position: relative !important;
-          z-index: 10 !important;
         }
       `}</style>
 
@@ -1022,7 +1118,24 @@ export default function SellerDashboard() {
                     className="sp-avatar"
                     style={{ background: active?.color || 'linear-gradient(135deg, #F59E0B, #FFC24B)' }}
                   >
-                    {active?.avatar || '؟'}
+                    {active?.image ? (
+                      <img
+                        src={active.image}
+                        alt={active?.name || 'کسب‌وکار'}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          const fallback = e.currentTarget.nextElementSibling;
+                          if (fallback) fallback.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <span style={{
+                      display: active?.image ? 'none' : 'flex',
+                      width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      {active?.avatar || '؟'}
+                    </span>
                   </div>
                   <div>
                     <b>{active?.name || 'مغازه‌ای انتخاب نشده'}</b>
@@ -1038,7 +1151,7 @@ export default function SellerDashboard() {
               </svg>
               بازگشت به صفحه اصلی
             </Link>
-            <button className="exit-btn" onClick={() => toast('خروج انجام شد')}>
+            <button className="exit-btn" onClick={handleLogout}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
               </svg>
@@ -1162,14 +1275,45 @@ export default function SellerDashboard() {
                     document.body
                   )}
                 </div>
-                <div className="profile-chip">
-                  <div className="pc-avatar">
-                    {(currentUser?.name || currentUser?.phone || 'ف')[0]}
-                  </div>
-                  <span>
-                    {currentUser?.name || currentUser?.phone || 'فروشنده'}
-                  </span>
-                </div>
+                <Link to="/profile" className="profile-chip" title="پروفایل من">
+  <div
+    className="pc-avatar"
+    style={{
+      overflow: 'hidden',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 0,
+    }}
+  >
+    {currentUser?.avatar ? (
+      <img
+        src={getFileUrl(currentUser.avatar)}
+        alt={currentUser?.name || 'پروفایل'}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        onError={(e) => {
+          e.currentTarget.style.display = 'none';
+          const fallback = e.currentTarget.nextElementSibling;
+          if (fallback) fallback.style.display = 'flex';
+        }}
+      />
+    ) : null}
+    <span
+      style={{
+        display: currentUser?.avatar ? 'none' : 'flex',
+        width: '100%',
+        height: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {(currentUser?.name || currentUser?.phone || 'ف')[0]}
+    </span>
+  </div>
+  <span className="pc-name">
+    {currentUser?.name || currentUser?.phone || 'فروشنده'}
+  </span>
+</Link>
               </div>
             </header>
           )}
@@ -1231,9 +1375,11 @@ export default function SellerDashboard() {
                       <circle cx="12" cy="12" r="3" />
                     </svg>
                   </div>
-                  <div className="si-num">—</div>
+                  <div className="si-num">
+  {(reports.monthlyViews || 0).toLocaleString('fa-IR')}
+</div>
                   <div className="si-label">بازدید این ماه</div>
-                  <div className="si-trend up">به‌زودی</div>
+                 <div className="si-trend up">۳۰ روز اخیر</div>
                 </div>
               </div>
 
@@ -1300,94 +1446,94 @@ export default function SellerDashboard() {
                     />
                   </div>
                 </div>
-                <div style={{ overflowX: 'auto' }}>
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>تصویر</th>
-                        <th>محصول</th>
-                        <th>قیمت</th>
-                        <th>موجودی</th>
-                        <th>وضعیت</th>
-                        <th>عملیات</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {productsLoading ? (
-                        <tr>
-                          <td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
-                            در حال بارگذاری...
-                          </td>
-                        </tr>
-                      ) : filteredProducts.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
-                            محصولی یافت نشد
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredProducts.map((p, idx) => (
-                          <tr key={p.id} style={{ animationDelay: `${idx * 0.04}s` }}>
-                            <td>
-                              <div
-                                style={{
-                                  width: 42,
-                                  height: 42,
-                                  borderRadius: 10,
-                                  overflow: 'hidden',
-                                  background: 'var(--card)',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontSize: 20,
-                                }}
-                              >
-                                {p.image ? (
-                                  <img
-                                    src={p.image}
-                                    alt={p.name}
-                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                  />
-                                ) : (
-                                  p.emoji
-                                )}
-                              </div>
-                            </td>
-                            <td className="cust">{p.name}</td>
-                            <td>{p.price} تومان</td>
-                            <td>{p.stock}</td>
-                            <td>
-                              <span className={statusPillClass(p.status)}>
-                                <span className="d" />
-                                {p.status}
-                              </span>
-                            </td>
-                            <td>
-                              <div className="row-actions">
-                                <button title="ویرایش" onClick={() => openEditProduct(p)}>
-                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                    <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                  </svg>
-                                </button>
-                                <button
-                                  title="حذف"
-                                  style={{ color: 'var(--danger)' }}
-                                  onClick={() => confirmDeleteProduct(p.id)}
-                                >
-                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                                    <path d="M10 11v6M14 11v6" />
-                                  </svg>
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+             <div style={{ overflowX: 'auto' }}>
+  <table className="data-table">
+    <thead>
+      <tr>
+        <th>تصویر</th>
+        <th>محصول</th>
+        <th>قیمت</th>
+        <th>موجودی</th>
+        <th>وضعیت</th>
+        <th>عملیات</th>
+      </tr>
+    </thead>
+    <tbody>
+      {productsLoading ? (
+        <tr>
+          <td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
+            در حال بارگذاری...
+          </td>
+        </tr>
+      ) : filteredProducts.length === 0 ? (
+        <tr>
+          <td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
+            محصولی یافت نشد
+          </td>
+        </tr>
+      ) : (
+        filteredProducts.map((p, idx) => (
+          <tr key={p.id} style={{ animationDelay: `${idx * 0.04}s` }}>
+            <td>
+              <div
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 10,
+                  overflow: 'hidden',
+                  background: 'var(--card)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 20,
+                }}
+              >
+                {p.image ? (
+                  <img
+                    src={p.image}
+                    alt={p.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  p.emoji
+                )}
+              </div>
+            </td>
+            <td className="cust">{p.name}</td>
+            <td>{p.price} تومان</td>
+            <td>{p.stock}</td>
+            <td>
+              <span className={statusPillClass(p.status)}>
+                <span className="d" />
+                {p.status}
+              </span>
+            </td>
+            <td>
+              <div className="row-actions">
+                <button title="ویرایش" onClick={() => openEditProduct(p)}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                </button>
+                <button
+                  title="حذف"
+                  style={{ color: 'var(--danger)' }}
+                  onClick={() => confirmDeleteProduct(p.id)}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                    <path d="M10 11v6M14 11v6" />
+                  </svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+        ))
+      )}
+    </tbody>
+  </table>
+</div>
               </div>
             </section>
 
@@ -1431,7 +1577,7 @@ export default function SellerDashboard() {
                   </div>
                   <div className="gc-convo-list">
                     {messagesLoading ? (
-                      <div className="gc-convo-empty">در حال بارگذاری...</div>
+                      <div className="gc-convo-empty"><span className="lk-spinner" />در حال بارگذاری...</div>
                     ) : filteredConversations.length === 0 ? (
                       <div className="gc-convo-empty">گفتگویی با این مشخصات پیدا نشد</div>
                     ) : (
@@ -1528,10 +1674,10 @@ export default function SellerDashboard() {
                               m.time === 'اکنون'
                                 ? 'امروز'
                                 : m.rawTime
-                                  ? formatRelativeTime(m.rawTime).includes('پیش') || formatRelativeTime(m.rawTime) === 'دیروز'
-                                    ? formatRelativeTime(m.rawTime)
-                                    : 'امروز'
-                                  : 'امروز';
+                                ? formatRelativeTime(m.rawTime).includes('پیش') || formatRelativeTime(m.rawTime) === 'دیروز'
+                                  ? formatRelativeTime(m.rawTime)
+                                  : 'امروز'
+                                : 'امروز';
                             const showDivider = dayLabel !== lastDayLabel;
                             lastDayLabel = dayLabel;
                             return (
@@ -1696,243 +1842,176 @@ export default function SellerDashboard() {
                   <h2>رشد و تبلیغات</h2>
                   <p>عملکرد حضور مغازه در لوکاوو و ابزارهای افزایش دیده‌شدن</p>
                 </div>
-                <button className="primary-btn" onClick={() => toast('امکانات تبلیغات بر اساس اشتراک شما فعال می‌شود')}>
-                  فعال‌سازی تبلیغ
-                </button>
               </div>
+
               <div className="stat-grid">
                 <div className="card stat-card">
-                  <div className="si-icon" style={{ background: 'var(--primary)' }}>
+                  <div className="si-icon" style={{ background: 'var(--ok)' }}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
                       <circle cx="12" cy="12" r="3" />
                     </svg>
                   </div>
                   <div className="si-num">{(reports.monthlyViews || 0).toLocaleString('fa-IR')}</div>
-                  <div className="si-label">بازدید ماهانه</div>
-                  <div className="si-trend up">از دیتابیس</div>
+                  <div className="si-label">بازدید این ماه</div>
+                  <div className="si-trend up">۳۰ روز اخیر</div>
                 </div>
 
                 <div className="card stat-card">
-                  <div className="si-icon" style={{ background: '#0EA5E9' }}>
+                  <div className="si-icon" style={{ background: 'var(--primary)' }}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
                     </svg>
                   </div>
                   <div className="si-num">{(reports.profileViews || 0).toLocaleString('fa-IR')}</div>
-                  <div className="si-label">بازدید پروفایل</div>
-                  <div className="si-trend up">از دیتابیس</div>
+                  <div className="si-label">بازدید کل پروفایل</div>
                 </div>
 
                 <div className="card stat-card">
                   <div className="si-icon" style={{ background: 'var(--accent)' }}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M20 7 12 3 4 7l8 4 8-4Z" />
-                      <path d="M4 7v10l8 4 8-4V7" />
+                      <path d="M15 3h6v6M10 14 21 3M21 14v7H3V3h7" />
                     </svg>
                   </div>
                   <div className="si-num">{(reports.productClicks || 0).toLocaleString('fa-IR')}</div>
-                  <div className="si-label">کلیک روی محصولات</div>
-                  <div className="si-trend up">به‌زودی</div>
+                  <div className="si-label">کلیک تماس و مسیریابی</div>
                 </div>
 
                 <div className="card stat-card">
-                  <div className="si-icon" style={{ background: 'var(--ok)' }}>
+                  <div className="si-icon" style={{ background: 'var(--bad)' }}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                      <path d="M13 2 3 14h7l-1 8 11-13h-7l1-7z" />
                     </svg>
                   </div>
                   <div className="si-num">{(reports.visibilityScore || 0).toLocaleString('fa-IR')}٪</div>
                   <div className="si-label">امتیاز دیده‌شدن</div>
-                  <div className="si-trend up">
+                  <div className={`si-trend ${(reports.visibilityScore || 0) >= 70 ? 'up' : ''}`}>
                     {(reports.visibilityScore || 0) >= 70 ? 'وضعیت خوب' : 'قابل بهبود'}
                   </div>
                 </div>
               </div>
-              <div className="card" style={{ padding: 22, marginBottom: 18 }}>
-                <div className="section-head" style={{ marginTop: 0, marginBottom: 18 }}>
+
+              {/* ===== وضعیت اشتراک فعلی ===== */}
+              {mySubscription && (
+                <div className="card" style={{ padding: 18, marginBottom: 18, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
                   <div>
-                    <h2 style={{ fontSize: 16 }}>اشتراک و تبلیغات</h2>
-                    <p>با انتخاب یک اشتراک، امکانات رشد و دیده‌شدن مغازه خود را فعال کنید</p>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>پلن فعلی شما</div>
+                    <div style={{ fontSize: 16, fontWeight: 800 }}>
+                      {mySubscription.plan?.name || 'رایگان'}
+                      {!mySubscription.is_default && mySubscription.days_remaining != null && (
+                        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginRight: 8 }}>
+                          ({mySubscription.days_remaining.toLocaleString('fa-IR')} روز باقی‌مانده)
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="plan-tabs">
-                    <button
-                      className={`plan-tab-btn ${planMode === 'monthly' ? 'active' : ''}`}
-                      onClick={() => setPlanMode('monthly')}
-                    >
-                      ماهانه
-                    </button>
-                    <button
-                      className={`plan-tab-btn ${planMode === 'yearly' ? 'active' : ''}`}
-                      onClick={() => setPlanMode('yearly')}
-                    >
-                      سالانه
-                    </button>
-                  </div>
+                  {mySubscription.is_expired && (
+                    <span className="status-pill" style={{ background: 'var(--bad-tint)', color: 'var(--bad)' }}>
+                      منقضی شده — تمدید کنید
+                    </span>
+                  )}
                 </div>
+              )}
 
-                {/* ========== وضعیت اشتراک فعلی ========== */}
-                {currentSubscription && (
-                  <div className="current-subscription-box" style={{
-                    background: currentSubscription.is_expired ? '#fef2f2' : '#f0fdf4',
-                    border: `1px solid ${currentSubscription.is_expired ? '#fecaca' : '#bbf7d0'}`,
-                    borderRadius: '12px',
-                    padding: '16px 20px',
-                    marginBottom: '24px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: '12px'
-                  }}>
-                    <div>
-                      <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>
-                        اشتراک فعلی
-                      </div>
-                      <div style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>
-                        {currentSubscription.plan?.name || currentSubscription.plan?.key || 'پایه'}
-                      </div>
+              {/* ===== پلن‌های اشتراک ===== */}
+              <div className="section-head" style={{ marginTop: 4 }}>
+                <div>
+                  <h2 style={{ fontSize: 15 }}>پلن‌های اشتراک</h2>
+                  <p>هرچه پلن بالاتر، جایگاه بهتر در جستجو و امکان تبلیغ‌گذاری</p>
+                </div>
+                <div className="billing-toggle">
+                  <button
+                    className={billingCycle === 'monthly' ? 'active' : ''}
+                    onClick={() => setBillingCycle('monthly')}
+                  >
+                    ماهانه
+                  </button>
+                  <button
+                    className={billingCycle === 'yearly' ? 'active' : ''}
+                    onClick={() => setBillingCycle('yearly')}
+                  >
+                    سالانه
+                  </button>
+                </div>
+              </div>
 
-                      {currentSubscription.expires_at ? (
-                        <div style={{ marginTop: '6px', fontSize: '14px', color: '#475569', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                          <span>
-                            تاریخ انقضا: {new Date(currentSubscription.expires_at).toLocaleDateString('fa-IR')}
-                          </span>
-
-                          {currentSubscription.days_remaining !== null && (
-                            <span style={{
-                              color: currentSubscription.days_remaining <= 7 ? '#dc2626' : '#16a34a',
-                              fontWeight: '600',
-                              background: currentSubscription.days_remaining <= 7 ? '#fef2f2' : '#f0fdf4',
-                              padding: '2px 8px',
-                              borderRadius: '6px',
-                              fontSize: '13px'
-                            }}>
-                              {currentSubscription.is_expired
-                                ? 'منقضی شده'
-                                : `${currentSubscription.days_remaining} روز باقی‌مانده`}
+              <div className="subscription-grid">
+                {subscriptionPlans
+                  .filter((p) => p.key !== 'free' && p.billing_cycle === billingCycle)
+                  .map((plan) => {
+                    const isActive = mySubscription?.plan?.id === plan.id && !mySubscription?.is_default;
+                    const isFeatured = plan.key === 'growth';
+                    return (
+                      <div className={`plan-card${isFeatured ? ' featured' : ''}`} key={plan.id}>
+                        <div className="plan-top">
+                          <div>
+                            <span className="plan-label">اشتراک {plan.name}</span>
+                            <h4>{plan.name}</h4>
+                          </div>
+                          {isFeatured && <span className="featured-badge">پیشنهاد ویژه</span>}
+                          {isActive && (
+                            <span className="status-pill processing">
+                              <span className="d" /> فعال
                             </span>
                           )}
                         </div>
-                      ) : (
-                        <div style={{ marginTop: '6px', fontSize: '14px', color: '#64748b' }}>
-                          اشتراک رایگان پایه (بدون تاریخ انقضا)
+                        <div className="plan-price">
+                          <strong>{plan.price.toLocaleString('fa-IR')}</strong>
+                          <span>تومان / {plan.billing_cycle === 'yearly' ? 'سال' : 'ماه'}</span>
                         </div>
-                      )}
-                    </div>
+                        <div className="plan-features">
+                          <div>✓ تا {plan.max_images.toLocaleString('fa-IR')} عکس محصول</div>
+                          {plan.search_priority > 0 && <div>✓ اولویت در نتایج جستجو</div>}
+                          {plan.can_advertise && <div>✓ امکان خرید تبلیغ</div>}
+                          {plan.show_in_suggested && <div>✓ نمایش در پیشنهادها</div>}
+                          {plan.can_pin && <div>✓ امکان سنجاق‌کردن در بالای صفحه</div>}
+                          {plan.click_stats && <div>✓ آمار پیشرفته کلیک‌ها</div>}
+                          <div>✓ پشتیبانی {plan.support_level === 'dedicated' ? 'اختصاصی' : plan.support_level === 'priority' ? 'اولویت‌دار' : 'عادی'}</div>
+                        </div>
+                        <button
+                          className={isActive ? 'ghost-btn plan-btn' : 'primary-btn plan-btn'}
+                          disabled={isActive || subscribingPlanId === plan.id}
+                          onClick={() => handleSubscribe(plan.id)}
+                        >
+                          {isActive ? 'اشتراک فعال شما' : subscribingPlanId === plan.id ? 'در حال اتصال...' : 'خرید و فعال‌سازی'}
+                        </button>
+                      </div>
+                    );
+                  })}
+              </div>
 
-                    {/* دکمه تمدید */}
-                    {!currentSubscription.is_default && (
-                      <button
-                        onClick={async () => {
-                          console.log('در حال تمدید...', {
-                            businessId: activeBusinessId,
-                            planId: currentSubscription?.plan?.id
-                          });
-
-                          if (!currentSubscription?.plan?.id || !activeBusinessId) {
-                            alert('اطلاعات اشتراک ناقص است');
-                            return;
-                          }
-
-                          try {
-                            await api.subscription.subscribe(
-                              activeBusinessId,
-                              currentSubscription.plan.id
-                            );
-
-                            await loadMySubscription(activeBusinessId);
-                            alert('اشتراک با موفقیت تمدید شد ✅');
-                          } catch (error) {
-                            console.error('خطای تمدید:', error);
-                            alert(error.message || 'خطا در تمدید اشتراک');
-                          }
-                        }}
-                        style={{
-                          background: currentSubscription.is_expired ? '#dc2626' : '#2563eb',
-                          color: 'white',
-                          border: 'none',
-                          padding: '10px 18px',
-                          borderRadius: '8px',
-                          fontWeight: '600',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {currentSubscription.is_expired ? 'تمدید فوری' : 'تمدید اشتراک'}
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                <div className="subscription-grid">
-                  <SubscriptionCard
-                    plan={{
-                      key: 'basic',
-                      name: 'اشتراک پایه',
-                      price: 0,
-                      unit: prices.unit,
-                      duration: planMode === 'monthly' ? 'ماهانه' : 'سالانه',
-                      expires_at: currentSubscription?.expires_at,
-                      features: [
-                        'اضافه کردن ۲۰ تصویر از محصولات',
-                        'نمایش در نتایج جستجو',
-                        'دریافت تماس و کلیک کاربران',
-                        'پشتیبانی عادی',
-                        'تعرفه عادی کلیک و تماس',
-                      ],
-                    }}
-                    isActive={currentPlanKey === 'basic'}
-                    onSubscribe={handleSubscribe}
-                  />
-
-                  <SubscriptionCard
-                    plan={{
-                      key: 'pro',
-                      name: 'اشتراک حرفه‌ای',
-                      price: Number(getPlan('pro')?.price || 0),
-                      unit: prices.unit,
-                      duration: planMode === 'monthly' ? 'ماهانه' : 'سالانه',
-                      expires_at: currentSubscription?.expires_at,
-                      features: [
-                        'همه امکانات اشتراک پایه',
-                        'اضافه کردن ۴۰ تصویر از محصولات',
-                        'مشاهده تعداد بازدید از پروفایل',
-                        'مشاهده تعداد کلیک روی شماره تلفن',
-                        'مشاهده تعداد کلیک روی سایت',
-                        'نمایش در جایگاه‌های بالاتر نتایج جستجو',
-                        'امکان تبلیغ داخل اپ',
-                        'پشتیبانی با اولویت بالاتر',
-                        '۲۰٪ تخفیف در هزینه کلیک و تماس',
-                      ],
-                    }}
-                    isActive={currentPlanKey === 'pro'}
-                    onSubscribe={handleSubscribe}
-                  />
-
-                  <SubscriptionCard
-                    plan={{
-                      key: 'pro_plus',
-                      name: 'اشتراک حرفه‌ای پلاس',
-                      price: Number(getPlan('pro_plus')?.price || 0),
-                      unit: prices.unit,
-                      duration: planMode === 'monthly' ? 'ماهانه' : 'سالانه',
-                      expires_at: currentSubscription?.expires_at,
-                      features: [
-                        'همه امکانات اشتراک حرفه‌ای',
-                        'اضافه کردن ۱۰۰ تصویر از محصولات',
-                        'بالاترین جایگاه در نتایج جستجو',
-                        'نمایش در بخش «پیشنهاد ما»',
-                        'پین کردن پروفایل در نتایج جستجو',
-                        'اولویت بالاتر در تبلیغات داخل اپ',
-                        'پشتیبانی VIP',
-                        '۴۰٪ تخفیف در هزینه کلیک و تماس',
-                      ],
-                    }}
-                    isActive={currentPlanKey === 'pro_plus'}
-                    onSubscribe={handleSubscribe}
-                  />
+              {/* ===== تبلیغات ===== */}
+              <div className="section-head" style={{ marginTop: 22 }}>
+                <div>
+                  <h2 style={{ fontSize: 15 }}>تبلیغات</h2>
+                  <p>
+                    {mySubscription?.plan?.can_advertise
+                      ? 'یکی از گزینه‌های زیر را برای افزایش دیده‌شدن انتخاب کنید'
+                      : 'برای خرید تبلیغ، ابتدا اشتراک «رشد» یا بالاتر لازم است'}
+                  </p>
                 </div>
+              </div>
+
+              <div className="promo-grid">
+                {promoTypes.map((pt) => {
+                  const locked = pt.requiresAdvertising && !mySubscription?.plan?.can_advertise;
+                  return (
+                    <div className="card promo-card" key={pt.key}>
+                      <div className="promo-card-title">{pt.label}</div>
+                      <div className="promo-card-price">
+                        {pt.price.toLocaleString('fa-IR')} <span>تومان / {pt.days.toLocaleString('fa-IR')} روز</span>
+                      </div>
+                      <button
+                        className={locked ? 'ghost-btn' : 'primary-btn'}
+                        disabled={locked || requestingPromoType === pt.key}
+                        onClick={() => handleRequestPromo(pt.key)}
+                      >
+                        {locked ? 'نیاز به اشتراک رشد' : requestingPromoType === pt.key ? 'در حال ثبت...' : 'درخواست فعال‌سازی'}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="growth-layout">
@@ -1940,21 +2019,21 @@ export default function SellerDashboard() {
                   <div className="section-head" style={{ marginTop: 0 }}>
                     <div>
                       <h2 style={{ fontSize: 15 }}>روند بازدید</h2>
-                      <p>هفت روز اخیر (به‌زودی)</p>
+                      <p>هفت روز اخیر</p>
                     </div>
                   </div>
                   <div className="growth-bars">
                     {(reports.weeklyViews && reports.weeklyViews.length > 0
                       ? reports.weeklyViews
                       : [
-                        { day: 'شنبه', value: 0 },
-                        { day: 'یکشنبه', value: 0 },
-                        { day: 'دوشنبه', value: 0 },
-                        { day: 'سه‌شنبه', value: 0 },
-                        { day: 'چهارشنبه', value: 0 },
-                        { day: 'پنجشنبه', value: 0 },
-                        { day: 'جمعه', value: 0 },
-                      ]
+                          { day: 'شنبه', value: 0 },
+                          { day: 'یکشنبه', value: 0 },
+                          { day: 'دوشنبه', value: 0 },
+                          { day: 'سه‌شنبه', value: 0 },
+                          { day: 'چهارشنبه', value: 0 },
+                          { day: 'پنجشنبه', value: 0 },
+                          { day: 'جمعه', value: 0 },
+                        ]
                     ).map((item) => (
                       <div className="growth-col" key={item.day}>
                         <div className="bar" style={{ height: `${item.value}%` }} />
@@ -1964,29 +2043,29 @@ export default function SellerDashboard() {
                   </div>
                 </div>
                 <div className="card side-card">
-                  <h3 style={{ fontSize: 14.5, fontWeight: 800, marginBottom: 14 }}>پیشنهادهای رشد</h3>
-                  <div className="growth-suggest-row">
-                    <span>تکمیل اطلاعات مغازه</span>
-                    <b>۹۰٪</b>
-                  </div>
-                  <div className="growth-suggest-row">
-                    <span>افزودن تصویر محصول</span>
-                    <b>۷۵٪</b>
-                  </div>
-                  <div className="growth-suggest-row">
-                    <span>فعال‌سازی تبلیغ</span>
-                    <button
-                      className="ghost-btn"
-                      style={{ padding: '6px 12px', fontSize: 11 }}
-                      onClick={() => toast('صفحه تبلیغات باز شد')}
-                    >
-                      مشاهده
-                    </button>
-                  </div>
+                  <h3 style={{ fontSize: 14.5, fontWeight: 800, marginBottom: 14 }}>درخواست‌های تبلیغ من</h3>
+                  {myPromos.length === 0 ? (
+                    <div style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>هنوز درخواستی ثبت نکرده‌اید.</div>
+                  ) : (
+                    myPromos.map((p) => (
+                      <div className="growth-suggest-row" key={p.id}>
+                        <span>{p.type}</span>
+                        <span
+                          className="status-pill"
+                          style={{
+                            background:
+                              p.status === 'active' ? 'var(--ok-tint)' : p.status === 'rejected' ? 'var(--bad-tint)' : 'var(--accent-tint, var(--card))',
+                            color: p.status === 'active' ? 'var(--ok)' : p.status === 'rejected' ? 'var(--bad)' : 'var(--text-muted)',
+                          }}
+                        >
+                          {p.status === 'active' ? 'فعال' : p.status === 'rejected' ? 'رد شده' : 'در انتظار'}
+                        </span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </section>
-
             {/* ================= SETTINGS ================= */}
             <section className={`dash-section${activePage === 'settings' ? ' active' : ''}`}>
               <div className="section-head">
@@ -1994,8 +2073,8 @@ export default function SellerDashboard() {
                   <h2>تنظیمات فروشگاه</h2>
                   <p>اطلاعات و نحوه نمایش مغازه را مدیریت کنید</p>
                 </div>
-                <button className="primary-btn" onClick={saveSettings}>
-                  ذخیره تغییرات
+                <button className="primary-btn" onClick={saveSettings} disabled={settingsSaving}>
+                  {settingsSaving ? 'در حال ذخیره...' : 'ذخیره تغییرات'}
                 </button>
               </div>
               <div className="settings-grid">
@@ -2057,70 +2136,184 @@ export default function SellerDashboard() {
             </section>
 
             {/* ================= BUSINESSES ================= */}
-            <section className={`dash-section${activePage === 'businesses' ? ' active' : ''}`}>
-              <div className="section-head">
-                <div>
-                  <h2>کسب‌وکارهای من</h2>
-                  <p>مدیریت تمام کسب‌وکارهای متصل به حساب شما</p>
-                </div>
-                <Link className="primary-btn" to={ADD_BUSINESS_PATH}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
-                  افزودن کسب‌وکار
-                </Link>
-              </div>
-              {businessesLoading ? (
-                <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>در حال بارگذاری...</div>
-              ) : myBusinesses.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
-                  هنوز کسب‌وکاری ثبت نکرده‌اید
-                </div>
-              ) : (
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                    gap: 16,
-                  }}
-                >
-                  {myBusinesses.map((s) => (
-                    <div
-                      key={s.id}
-                      className={`shop-card${activeBusinessId === s.id ? ' active' : ''}`}
-                      onClick={() => {
-                        selectBusiness(s.id);   // به‌جای setActiveBusinessId(s.id)
-                        toast(`«${s.name}» فعال شد`);
-                      }}
-                    >
-                      <div className="sc-avatar" style={{ background: s.color }}>
-                        {s.avatar}
-                      </div>
-                      <div className="sc-info">
-                        <b>{s.name}</b>
-                        <span>{s.cat}</span>
-                      </div>
-                      <Link
-                        to={`/business/${s.id}`}
-                        className="ghost-btn"
-                        style={{ fontSize: 12, padding: '6px 12px', marginTop: 8 }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        مشاهده صفحه عمومی
-                      </Link>
-                      <div className="sc-check">
-                        {activeBusinessId === s.id && (
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                            <path d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
+{/* ================= BUSINESSES ================= */}
+<section className={`dash-section${activePage === 'businesses' ? ' active' : ''}`}>
+  <div className="section-head">
+    <div>
+      <h2>کسب‌وکارهای من</h2>
+      <p>مدیریت تمام کسب‌وکارهای متصل به حساب شما</p>
+    </div>
+    <Link className="primary-btn" to={ADD_BUSINESS_PATH}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+        <path d="M12 5v14M5 12h14" />
+      </svg>
+      افزودن کسب‌وکار
+    </Link>
+  </div>
+  {businessesLoading ? (
+    <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>در حال بارگذاری...</div>
+  ) : myBusinesses.length === 0 ? (
+    <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
+      هنوز کسب‌وکاری ثبت نکرده‌اید
+    </div>
+  ) : (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+        gap: 16,
+      }}
+    >
+      {myBusinesses.map((s) => (
+        <div
+          key={s.id}
+          className={`shop-card${activeBusinessId === s.id ? ' active' : ''}`}
+          onClick={() => {
+            selectBusiness(s.id);
+            toast(`«${s.name}» فعال شد`);
+          }}
+        >
+          <div
+            className="sc-avatar"
+            style={{
+              background: s.color,
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0,
+            }}
+          >
+            {s.image ? (
+              <img
+                src={s.image}
+                alt={s.name}
+                loading="lazy"
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  const fallback = e.currentTarget.nextElementSibling;
+                  if (fallback) fallback.style.display = 'flex';
+                }}
+              />
+            ) : null}
+            <span style={{
+              display: s.image ? 'none' : 'flex',
+              width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center'
+            }}>
+              {s.avatar}
+            </span>
           </div>
+          <div className="sc-info">
+            <b>{s.name}</b>
+            <span>{s.cat}</span>
+          </div>
+
+          <div
+  style={{
+    display: 'flex',
+    gap: 6,
+    marginTop: 10,
+    flexWrap: 'nowrap',
+    alignItems: 'center',
+    width: '100%',
+  }}
+>
+  <Link
+    to={`/businesses/${s.id}`}
+    className="ghost-btn"
+    style={{
+      fontSize: 11,
+      padding: '6px 10px',
+      flex: 1,
+      minWidth: 0,
+      textAlign: 'center',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+    }}
+    onClick={(e) => e.stopPropagation()}
+  >
+    مشاهده صفحه عمومی
+  </Link>
+
+  <Link
+    to={`/edit-business/${s.id}`}
+    className="ghost-btn"
+    style={{
+      fontSize: 11,
+      padding: '6px 10px',
+      flex: 1,
+      minWidth: 0,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      whiteSpace: 'nowrap',
+    }}
+    onClick={(e) => e.stopPropagation()}
+  >
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+    ویرایش
+  </Link>
+
+  <button
+    type="button"
+    title="حذف کسب‌وکار"
+    onClick={(e) => {
+      e.stopPropagation();
+      confirmDeleteBusiness(s.id);
+    }}
+    style={{
+      width: 32,
+      height: 32,
+      borderRadius: '50%',
+      border: '1px solid var(--border)',
+      background: 'var(--surface)',
+      color: 'var(--danger)',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      cursor: 'pointer',
+      flexShrink: 0,
+      padding: 0,
+      transition: 'background 0.2s, border-color 0.2s',
+    }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.background = 'rgba(224, 52, 76, 0.12)';
+      e.currentTarget.style.borderColor = 'var(--danger)';
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.background = 'var(--surface)';
+      e.currentTarget.style.borderColor = 'var(--border)';
+    }}
+  >
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+      <path d="M10 11v6M14 11v6" />
+    </svg>
+  </button>
+</div>  
+
+
+          <div className="sc-check">
+            {activeBusinessId === s.id && (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <path d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+</section>
+          </div>
+
+          <Footer />
         </div>
       </div>
 
@@ -2286,6 +2479,47 @@ export default function SellerDashboard() {
           </button>
         </div>
       </div>
+
+      {/* تأیید حذف کسب‌وکار */}
+{/* تأیید حذف کسب‌وکار */}
+<div
+  className={`drawer-overlay${deleteBusinessId ? ' open' : ''}`}
+  onClick={() => setDeleteBusinessId(null)}
+/>
+<div className={`drawer${deleteBusinessId ? ' open' : ''}`} style={{ maxWidth: 380 }}>
+  <div className="drawer-head">
+    <h3>حذف کسب‌وکار</h3>
+    <button className="drawer-close" onClick={() => setDeleteBusinessId(null)}>
+      ×
+    </button>
+  </div>
+  <div className="drawer-body">
+    <p style={{ fontSize: 14, lineHeight: 1.75, color: 'var(--text-muted)', margin: 0 }}>
+      آیا از حذف این کسب‌وکار مطمئن هستید؟ تمام محصولات، پیام‌ها و نظرات مرتبط نیز حذف می‌شوند. این عمل قابل بازگشت نیست.
+    </p>
+  </div>
+  <div className="drawer-foot" style={{ display: 'flex', gap: 10 }}>
+    <button
+      className="ghost-btn"
+      onClick={() => setDeleteBusinessId(null)}
+      style={{ flex: 1 }}
+    >
+      انصراف
+    </button>
+    <button
+      className="primary-btn"
+      onClick={deleteBusiness}
+      style={{
+        flex: 1,
+        justifyContent: 'center',
+        background: 'var(--danger)',
+        border: 'none',
+      }}
+    >
+      حذف کسب‌وکار
+    </button>
+  </div>
+</div>
 
       {/* مودال همه نوتیفیکیشن‌ها */}
       <div className={`list-modal-overlay${notifModalOpen ? ' open' : ''}`} onClick={closeNotifModal}>

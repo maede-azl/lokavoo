@@ -7,21 +7,22 @@ datasource db {
 }
 
 model User {
-  id          Int      @id @default(autoincrement())
-  phone       String   @unique
-  name        String?
-  username    String?  @unique
-  email       String?  @unique
-  bio         String?  @db.Text
-  avatar      String?
-  birthdate   String?
-  role        String   @default("user")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  province    String?  @db.VarChar(100)
-  city        String?  @db.VarChar(100)
-  lastLoginAt     DateTime? // ← جدید
-  lastLoginDevice String?   @db.VarChar(255) // ← جدید (اطلاعات مرورگر/دستگاه)
+  id              Int       @id @default(autoincrement())
+  phone           String    @unique
+  name            String?
+  username        String?   @unique
+  email           String?   @unique
+  bio             String?   @db.Text
+  avatar          String?
+  birthdate       String?
+  role            String    @default("user")
+  status          String    @default("active") @db.VarChar(20)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  province        String?   @db.VarChar(100)
+  city            String?   @db.VarChar(100)
+  lastLoginAt     DateTime?
+  lastLoginDevice String?   @db.VarChar(255)
 
   businesses     Business[]
   reviews        Review[]
@@ -29,7 +30,8 @@ model User {
   bookmarks      Bookmark[]
   viewHistory    ViewHistory[]
   searchHistory  SearchHistory[]
-  activityLogs ActivityLog[]
+  activityLogs   ActivityLog[]
+  adminThread    AdminThread?
 
   @@map("users")
 }
@@ -48,69 +50,82 @@ model SearchHistory {
 }
 
 model Category {
-  id         Int        @id @default(autoincrement())
-  name       String     @db.VarChar(100)
-  key_name   String     @unique @db.VarChar(50)
-  icon       String?    @db.VarChar(50)
-  color_1    String?    @db.VarChar(20)
-  color_2    String?    @db.VarChar(20)
-  created_at DateTime   @default(now())
+  id         Int      @id @default(autoincrement())
+  name       String   @db.VarChar(100)
+  key_name   String   @unique @db.VarChar(50)
+  icon       String?  @db.VarChar(50)
+  color_1    String?  @db.VarChar(20)
+  color_2    String?  @db.VarChar(20)
+  created_at DateTime @default(now())
+
   businesses Business[]
 
   @@map("categories")
 }
 
 model Business {
-  id               Int             @id @default(autoincrement())
+  id               Int       @id @default(autoincrement())
   user_id          Int
-  name             String          @db.VarChar(255)
-  description      String?
+  name             String    @db.VarChar(255)
+  description      String?   @db.Text
   category_id      Int
-  phone            String?         @db.VarChar(20)
-  address          String?
-  latitude         Decimal?        @db.Decimal(10, 8)
-  longitude        Decimal?        @db.Decimal(11, 8)
-  opening_time     DateTime?       @db.Time(6)
-  closing_time     DateTime?       @db.Time(6)
-  status           String          @default("pending") @db.VarChar(20)
-  views            Int             @default(0)
-  created_at       DateTime        @default(now())
-  updated_at       DateTime        @updatedAt
-  call_count       Int             @default(0)
-  route_count      Int             @default(0)
-  card_number      String?         @db.VarChar(30)
-  delivery_enabled Boolean         @default(true)
-  notif_message    Boolean         @default(true)
-  notif_review     Boolean         @default(false)
-  pickup_enabled   Boolean         @default(true)
-  sheba_number     String?         @db.VarChar(30)
-  shipping_cost    Int             @default(0)
-  images           BusinessImage[]
-  category         Category        @relation(fields: [category_id], references: [id])
-  user             User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  conversations    Conversation[]
-  faqs             FAQ[]
-  notifications    Notification[]
-  products         Product[]
-  reviews          Review[]
-  bookmarks   Bookmark[]
-  viewHistory ViewHistory[]
-  activityLogs ActivityLog[]
-  subscriptions    BusinessSubscription[] 
+  phone            String?   @db.VarChar(20)
+  website          String?   @db.VarChar(500)
+  address          String?   @db.Text
+  city             String?   @db.VarChar(100)
+  province         String?   @db.VarChar(100)
+  latitude         Decimal?  @db.Decimal(10, 8)
+  longitude        Decimal?  @db.Decimal(11, 8)
+  opening_time     DateTime? @db.Time(6)
+  closing_time     DateTime? @db.Time(6)
+  status           String    @default("pending") @db.VarChar(20)
+  views            Int       @default(0)
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+  call_count       Int       @default(0)
+  route_count      Int       @default(0)
+  card_number      String?   @db.VarChar(30)
+  show_phone       Boolean   @default(true)
+  delivery_enabled Boolean   @default(true)
+  notif_message    Boolean   @default(true)
+  notif_review     Boolean   @default(false)
+  pickup_enabled   Boolean   @default(true)
+  sheba_number     String?   @db.VarChar(30)
+  shipping_cost    Int       @default(0)
+  has_banner_access Boolean  @default(false)
+  has_verified_badge Boolean @default(false)
+
+  images   BusinessImage[]
+  category Category        @relation(fields: [category_id], references: [id])
+  user     User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  conversations Conversation[]
+  faqs          FAQ[]
+  notifications Notification[]
+  products      Product[]
+  reviews       Review[]
+  bookmarks     Bookmark[]
+  viewHistory   ViewHistory[]
+  activityLogs  ActivityLog[]
+  promos        Promo[]
+  subscriptions BusinessSubscription[]
+  payments      Payment[]
 
   @@index([user_id])
   @@index([category_id])
   @@index([status])
+  @@index([city])
   @@map("businesses")
 }
 
 model BusinessImage {
   id          Int      @id @default(autoincrement())
   business_id Int
-  image_url   String   @db.VarChar(500)
+  image_url   String   @db.VarChar(1000)
   is_primary  Boolean  @default(false)
   created_at  DateTime @default(now())
-  business    Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+
+  business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
 
   @@index([business_id])
   @@map("business_images")
@@ -118,11 +133,12 @@ model BusinessImage {
 
 model FAQ {
   id          Int      @id @default(autoincrement())
-  question    String
-  answer      String
+  question    String   @db.Text
+  answer      String   @db.Text
   business_id Int
   created_at  DateTime @default(now())
-  business    Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+
+  business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
 
   @@index([business_id])
   @@map("faqs")
@@ -133,13 +149,14 @@ model Review {
   business_id Int
   user_id     Int
   rating      Int       @db.SmallInt
-  comment     String?
+  comment     String?   @db.Text
   created_at  DateTime  @default(now())
   updated_at  DateTime  @updatedAt
   replied_at  DateTime?
-  reply       String?
-  business    Business  @relation(fields: [business_id], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [user_id], references: [id])
+  reply       String?   @db.Text
+
+  business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [user_id], references: [id])
 
   @@unique([business_id, user_id])
   @@index([business_id])
@@ -157,38 +174,42 @@ model Product {
   discount    Int      @default(0)
   color       String?  @db.VarChar(20)
   active      Boolean  @default(true)
-  image_url   String?
+  image_url   String?  @db.Text
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
-  business    Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+
+  business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
 
   @@index([business_id])
   @@map("products")
 }
 
 model Conversation {
-  id            Int       @id @default(autoincrement())
+  id            Int      @id @default(autoincrement())
   business_id   Int
   customer_id   Int?
-  customer_name String    @db.VarChar(255)
-  last_message  String?
-  unread        Boolean   @default(false)
-  created_at    DateTime  @default(now())
-  updated_at    DateTime  @updatedAt
-  business      Business  @relation(fields: [business_id], references: [id], onDelete: Cascade)
-  messages      Message[]
+  customer_name String   @db.VarChar(255)
+  last_message  String?  @db.Text
+  unread        Boolean  @default(false)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  business Business  @relation(fields: [business_id], references: [id], onDelete: Cascade)
+  messages Message[]
 
   @@index([business_id])
+  @@index([customer_id])
   @@map("conversations")
 }
 
 model Message {
-  id              Int          @id @default(autoincrement())
+  id              Int      @id @default(autoincrement())
   conversation_id Int
-  sender          String       @db.VarChar(10)
-  text            String
-  created_at      DateTime     @default(now())
-  conversation    Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  sender          String   @db.VarChar(10)
+  text            String   @db.Text
+  created_at      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
 
   @@index([conversation_id])
   @@map("messages")
@@ -198,35 +219,179 @@ model Notification {
   id          Int      @id @default(autoincrement())
   business_id Int
   title       String   @db.VarChar(255)
-  desc        String?
-  icon        String?
+  desc        String?  @db.Text
+  icon        String?  @db.Text
   color       String?  @db.VarChar(20)
   read        Boolean  @default(false)
   created_at  DateTime @default(now())
-  business    Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+
+  business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
 
   @@index([business_id])
   @@index([read])
   @@map("notifications")
 }
 
+model OtpCode {
+  id         Int      @id @default(autoincrement())
+  phone      String   @db.VarChar(20)
+  code       String   @db.VarChar(10)
+  expires_at DateTime
+  created_at DateTime @default(now())
+
+  @@index([phone])
+  @@map("otp_codes")
+}
+
 model ProblemReport {
   id          Int      @id @default(autoincrement())
   user_id     Int?
   subject     String   @db.VarChar(255)
-  description String
+  description String   @db.Text
   status      String   @default("pending") @db.VarChar(20)
+  admin_reply String?  @db.Text
+  replied_at  DateTime?
   created_at  DateTime @default(now())
-  user        User?    @relation(fields: [user_id], references: [id])
+
+  user User? @relation(fields: [user_id], references: [id])
 
   @@index([user_id])
   @@index([status])
   @@map("problem_reports")
 }
 
-// ============================================
-// بوکمارک‌های کاربر
-// ============================================
+model Promo {
+  id          Int      @id @default(autoincrement())
+  business_id Int
+  type        String   @db.VarChar(50)
+  price       Int      @default(0)
+  days        Int      @default(1)
+  status      String   @default("pending") @db.VarChar(20)
+  visible     Boolean  @default(false)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+
+  @@index([business_id])
+  @@index([status])
+  @@map("promos")
+}
+
+model SubscriptionPlan {
+  id                 Int      @id @default(autoincrement())
+  key                String   @db.VarChar(30) // basic | growth | growth_plus
+  name               String   @db.VarChar(100)
+  billing_cycle      String   @db.VarChar(20) // monthly | yearly
+  price              Int      @default(0)
+  duration_days      Int
+  max_images         Int      @default(3)
+  search_priority    Int      @default(0)
+  can_pin            Boolean  @default(false)
+  show_in_suggested  Boolean  @default(false)
+  can_advertise      Boolean  @default(false)
+  ad_priority        Int      @default(0)
+  view_stats         Boolean  @default(false)
+  click_stats        Boolean  @default(false)
+  support_level      String   @default("normal") @db.VarChar(20)
+  is_active          Boolean  @default(true)
+  created_at         DateTime @default(now())
+
+  subscriptions BusinessSubscription[]
+
+  @@unique([key, billing_cycle])
+  @@map("subscription_plans")
+}
+
+model Payment {
+  id               Int      @id @default(autoincrement())
+  business_id      Int
+  purpose          String   @db.VarChar(30) // subscription | promo
+  plan_id          Int?
+  promo_type       String?  @db.VarChar(50)
+  amount           Int
+  status           String   @default("pending") @db.VarChar(20) // pending | success | failed
+  order_id         String   @unique @db.VarChar(50)
+  ref_id           String?  @db.VarChar(50)
+  sale_reference_id String? @db.VarChar(50)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  business Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+
+  @@index([business_id])
+  @@index([status])
+  @@map("payments")
+}
+
+model BusinessSubscription {
+  id            Int       @id @default(autoincrement())
+  business_id   Int
+  plan_id       Int
+  status        String    @default("active") @db.VarChar(20) // active | expired
+  starts_at     DateTime  @default(now())
+  expires_at    DateTime?
+  payment_ref   String?   @db.VarChar(100)
+  is_auto_renew Boolean   @default(false)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  business Business         @relation(fields: [business_id], references: [id], onDelete: Cascade)
+  plan     SubscriptionPlan @relation(fields: [plan_id], references: [id])
+
+  @@index([business_id])
+  @@index([status])
+  @@index([expires_at])
+  @@map("business_subscriptions")
+}
+
+model AdminThread {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  unread     Int      @default(0)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user     User           @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  messages AdminMessage[]
+
+  @@unique([user_id])
+  @@map("admin_threads")
+}
+
+model AdminMessage {
+  id         Int      @id @default(autoincrement())
+  thread_id  Int
+  sender     String   @db.VarChar(10) // 'admin' | 'user'
+  text       String   @db.Text
+  created_at DateTime @default(now())
+
+  thread AdminThread @relation(fields: [thread_id], references: [id], onDelete: Cascade)
+
+  @@index([thread_id])
+  @@map("admin_messages")
+}
+
+model SiteSetting {
+  id                Int      @id @default(1)
+  site_name         String   @default("LOKAOO") @db.VarChar(100)
+  registration_open Boolean  @default(true)
+  auto_approve      Boolean  @default(false)
+  maintenance_mode  Boolean  @default(false)
+  banner_image_url  String?  @db.Text
+  updated_at        DateTime @updatedAt
+
+  @@map("site_settings")
+}
+
+model FooterContent {
+  id         Int      @id @default(1)
+  data       Json
+  updated_at DateTime @updatedAt
+
+  @@map("footer_content")
+}
+
 model Bookmark {
   id          Int      @id @default(autoincrement())
   user_id     Int
@@ -242,9 +407,6 @@ model Bookmark {
   @@map("bookmarks")
 }
 
-// ============================================
-// تاریخچه بازدید کاربر از کسب‌وکارها
-// ============================================
 model ViewHistory {
   id          Int      @id @default(autoincrement())
   user_id     Int
@@ -264,7 +426,7 @@ model ActivityLog {
   id          Int      @id @default(autoincrement())
   user_id     Int
   business_id Int?
-  type        String   @db.VarChar(30) // review | bookmark_add | bookmark_remove | profile_update | chat_start
+  type        String   @db.VarChar(30)
   message     String   @db.VarChar(500)
   created_at  DateTime @default(now())
 
@@ -272,59 +434,7 @@ model ActivityLog {
   business Business? @relation(fields: [business_id], references: [id], onDelete: SetNull)
 
   @@index([user_id])
+  @@index([business_id])
   @@index([created_at])
   @@map("activity_logs")
-}
-
-// ============================================
-// پلن‌های اشتراک
-// ============================================
-model SubscriptionPlan {
-  id                Int      @id @default(autoincrement())
-  key               String   // "basic" | "pro" | "pro_plus"
-  name              String   // "اشتراک پایه" | "حرفه‌ای" | "حرفه‌ای پلاس"
-  billing_cycle     String   // "monthly" | "yearly"
-  price             Int      @default(0)   // به تومان
-  duration_days     Int      // 30 یا 365
-  max_images        Int
-  search_priority   Int      @default(0)
-  can_pin           Boolean  @default(false)
-  show_in_suggested Boolean  @default(false)
-  can_advertise     Boolean  @default(false)
-  ad_priority       Int      @default(0)
-  view_stats        Boolean  @default(false)
-  click_stats       Boolean  @default(false)
-  support_level     String   @default("normal") // normal | priority | vip
-  click_discount    Int      @default(0)        // 0 | 20 | 40
-  is_active         Boolean  @default(true)
-  created_at        DateTime @default(now())
-
-  subscriptions     BusinessSubscription[]
-
-  @@unique([key, billing_cycle])
-  @@map("subscription_plans")
-}
-
-// ============================================
-// اشتراک فعال هر کسب‌وکار
-// ============================================
-model BusinessSubscription {
-  id              Int       @id @default(autoincrement())
-  business_id     Int
-  plan_id         Int
-  status          String    @default("active") // active | expired | cancelled
-  starts_at       DateTime  @default(now())
-  expires_at      DateTime?
-  payment_ref     String?   // کد پیگیری پرداخت
-  is_auto_renew   Boolean   @default(false)
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @updatedAt
-
-  business        Business           @relation(fields: [business_id], references: [id], onDelete: Cascade)
-  plan            SubscriptionPlan   @relation(fields: [plan_id], references: [id])
-
-  @@index([business_id])
-  @@index([status])
-  @@index([expires_at])
-  @@map("business_subscriptions")
 }

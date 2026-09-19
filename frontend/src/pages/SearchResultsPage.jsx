@@ -9,7 +9,7 @@ import { useTheme } from "../context/ThemeContext";
 import logoBlack from "../assets/locavo-logo-black.png";
 import logoWhite from "../assets/locavo-logo-white.png";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 /* ============ ICONS ============ */
 const STAR_PATH = "M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z";
@@ -104,6 +104,7 @@ export default function SearchResultsPage() {
   const goBtnRef = useRef(null);
   const pingTimerRef = useRef(null);
   const renderTokenRef = useRef(0);
+  const cityDebounceRef = useRef(null);
   const tabRefs = useRef({});
   const tabIndicatorRef = useRef(null);
   const resultTabsRef = useRef(null);
@@ -280,6 +281,7 @@ if (filters.cat !== "all") params.set("category", filters.cat);
     return () => controller.abort();
   }, [
     filters.search,
+    filters.city,
     filters.cat,
     filters.openOnly,
     filters.minRate,
@@ -724,6 +726,24 @@ const commitSearch = useCallback(
                       onClick={() => setFilters((f) => ({ ...f, openOnly: !f.openOnly }))}
                     ></div>
                   </div>
+                </div>
+
+                <div className="f-group">
+                  <h4>شهر</h4>
+                  <input
+                    type="text"
+                    className="f-city-input"
+                    placeholder="مثلاً: اصفهان"
+                    key={filters.city}
+                    defaultValue={filters.city}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (cityDebounceRef.current) clearTimeout(cityDebounceRef.current);
+                      cityDebounceRef.current = setTimeout(() => {
+                        setFilters((f) => ({ ...f, city: val.trim() }));
+                      }, 500);
+                    }}
+                  />
                 </div>
 
                 <div className="f-group">

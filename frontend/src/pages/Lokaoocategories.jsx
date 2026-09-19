@@ -8,7 +8,7 @@ import { useTheme } from "../context/ThemeContext";
 import logoBlack from "../assets/locavo-logo-black.png";
 import logoWhite from "../assets/locavo-logo-white.png";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 const catPalette = [
   "#FF7A45", "#2547E8", "#16A34A", "#8B5CF6", "#EC4899",
@@ -52,6 +52,53 @@ const catIcons = {
   "خدمات چاپ و تبلیغات": `<rect x="4" y="9" width="16" height="8" rx="1"/><path d="M7 9V4h10v5M7 17v4h10v-4"/>`,
   "تولیدی و کارخانه": `<path d="M3 21V11l5 3v-3l5 3V8l5 3v10Z"/>`,
   "سایر": `<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>`,
+};
+
+
+const catIconsByKey = {
+  "restaurant-cafe": `<path d="M6 2v8a2 2 0 0 0 2 2v10"/><path d="M6 2v6M9 2v6"/><path d="M17 2c-2.2 0-3 3-3 6.5S15 13 17 13v9"/>`,
+  "hotel": `<path d="M3 19v-8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v8"/><path d="M3 14h18"/><path d="M7 14v-2a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v2"/><path d="M3 19v2M21 19v2"/>`,
+  "medical": `<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>`,
+  "pharmacy": `<rect x="2" y="9" width="20" height="6" rx="3"/><path d="M12 9v6"/>`,
+  "beauty": `<circle cx="6" cy="6" r="2.4"/><circle cx="6" cy="18" r="2.4"/><path d="M20 4L8.5 15.5M20 20L8.5 8.5"/>`,
+  "spa": `<path d="M12 2c4.2 4.2 7 8.3 7 12.2A7 7 0 0 1 5 14.2C5 10.3 7.8 6.2 12 2Z"/>`,
+  "gym": `<path d="M4 9v6M2 10v4M20 9v6M22 10v4"/><path d="M7 12h10"/><path d="M4 12h0M20 12h0"/>`,
+  "education": `<path d="M2 8l10-5 10 5-10 5-10-5Z"/><path d="M6 11v5c2 2 10 2 12 0v-5"/>`,
+  "supermarket": `<circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/><path d="M2 3h2l2.6 12.4a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L21 7H6"/>`,
+  "clothing": `<path d="M8 3l4 2 4-2 4 4-3 3v10H7V10L4 7Z"/>`,
+  "jewelry": `<path d="M6 3h12l4 6-10 12L2 9Z"/><path d="M2 9h20M9 3l3 6-3 12M15 3l-3 6 3 12"/>`,
+  "mobile": `<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>`,
+  "computer": `<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>`,
+  "car-showroom": `<path d="M3 13l2-6h14l2 6"/><rect x="3" y="13" width="18" height="6" rx="1"/><circle cx="7.5" cy="19" r="1.5"/><circle cx="16.5" cy="19" r="1.5"/>`,
+  "car-repair": `<path d="M21 7a4 4 0 0 1-5.7 3.6L6.7 20 4 17.3l9.4-9.3A4 4 0 1 1 21 7Z"/>`,
+  "car-services": `<path d="M12 2s6 6.8 6 11.5a6 6 0 0 1-12 0C6 8.8 12 2 12 2Z"/>`,
+  "bank": `<path d="M3 10l9-6 9 6"/><path d="M4 10v9M9 10v9M15 10v9M20 10v9"/><path d="M2 21h20"/>`,
+  "real-estate": `<path d="M4 21V10l8-6 8 6v11"/><path d="M9 21v-6h6v6"/>`,
+  "lawyer": `<path d="M12 3v18M6 21h12"/><path d="M3 7l4-3 4 3-4 4-4-4Z"/><path d="M13 7l4-3 4 3-4 4-4-4Z"/>`,
+  "photography": `<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7l2-3h4l2 3"/><circle cx="12" cy="13.5" r="3.4"/>`,
+  "event-hall": `<path d="M12 3l1.6 4.6L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.4Z"/><path d="M4 20h16"/>`,
+  "florist": `<circle cx="12" cy="12" r="2.3"/><circle cx="12" cy="5" r="2.3"/><circle cx="12" cy="19" r="2.3"/><circle cx="5" cy="12" r="2.3"/><circle cx="19" cy="12" r="2.3"/>`,
+  "gift-handicraft": `<rect x="3" y="9" width="18" height="12" rx="1"/><path d="M3 9V6h18v3"/><path d="M12 6v15"/><path d="M12 6c-2 0-4.5-1-4.5-3s2.5-2 4.5 0c2-2 4.5-2 4.5 0s-2.5 3-4.5 3Z"/>`,
+  "pet-services": `<circle cx="7" cy="8" r="1.5"/><circle cx="11" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/><circle cx="18.5" cy="9" r="1.5"/><path d="M12 12c-3.8 0-6 2.3-6 4.8a3 3 0 0 0 6 1 3 3 0 0 0 6-1c0-2.5-2.2-4.8-6-4.8Z"/>`,
+  "technical-services": `<path d="M14 7l3 3-8 8-3-3 8-8Z"/><path d="M17 4l3 3-2 2-3-3 2-2Z"/>`,
+  "cleaning": `<path d="M6 21l9-9M15 6l3 3M18 3l3 3"/>`,
+  "transport": `<rect x="1" y="7" width="13" height="9" rx="1"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="6" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/>`,
+  "travel-agency": `<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7Z"/>`,
+  "religious": `<path d="M12 2a5 5 0 0 1 5 5v2H7V7a5 5 0 0 1 5-5Z"/><path d="M4 21V13h16v8"/><path d="M12 13V9"/>`,
+  "cultural": `<path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 2-2s-1-1.4-1-2.3 1-1.4 2-1.4h2.3A3.7 3.7 0 0 0 21 11.5C21 6.8 17 3 12 3Z"/><circle cx="7.5" cy="10.5" r="1.2"/><circle cx="11" cy="7.5" r="1.2"/><circle cx="15.5" cy="8.5" r="1.2"/>`,
+  "cinema": `<rect x="3" y="8" width="18" height="13" rx="1"/><path d="M3 8l2-4h4l-2 4M11 8l2-4h4l-2 4"/>`,
+  "tourism": `<path d="M2 20l7-12 4 6 3-4 6 10Z"/>`,
+  "print-ads": `<rect x="4" y="9" width="16" height="8" rx="1"/><path d="M7 9V4h10v5M7 17v4h10v-4"/>`,
+  "factory": `<path d="M3 21V11l5 3v-3l5 3V8l5 3v10Z"/>`,
+  "Bakery": `<path d="M4 11c0-3.5 2.5-6 4.5-6h7c2 0 4.5 2.5 4.5 6v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7Z"/><path d="M8 5v3M12 5v3M16 5v3"/><path d="M6 15h12"/>`,
+  "fruit": `<path d="M12 2c-4 0-7 3-7 7 0 2.5 1.5 4.5 3.5 5.5L7 20h10l-1.5-5.5C17.5 13.5 19 11.5 19 9c0-4-3-7-7-7Z"/><path d="M12 2v3"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="9" r="1"/>`,
+  "other": `<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>`,
+  // اضافه کردن دسته‌های فعلی ادمین
+  "cafe": `<path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V8z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/>`,
+  "dry-fruit": `<path d="M12 2c-4 0-7 3-7 7 0 2.5 1.5 4.5 3.5 5.5L7 20h10l-1.5-5.5C17.5 13.5 19 11.5 19 9c0-4-3-7-7-7Z"/><path d="M12 2v3"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="9" r="1"/>`,
+  "atelier": `<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7l2-3h4l2 3"/><circle cx="12" cy="13.5" r="3.4"/>`,
+  "restaurant": `<path d="M6 2v8a2 2 0 0 0 2 2v10"/><path d="M6 2v6M9 2v6"/><path d="M17 2c-2.2 0-3 3-3 6.5S15 13 17 13v9"/>`,
+  "confectionery": `<path d="M4 11c0-3.5 2.5-6 4.5-6h7c2 0 4.5 2.5 4.5 6v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7Z"/><path d="M8 5v3M12 5v3M16 5v3"/><path d="M6 15h12"/>`,
 };
 
 const defaultIcon = `<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>`;
@@ -286,8 +333,6 @@ function CatWatermarkSvg({ icon }) {
 export default function LokaooCategories() {
   const navigate = useNavigate();
   const { theme, toggleTheme, isDark } = useTheme();
-  const [fav, setFav] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [rawFilter, setRawFilter] = useState("");
   const [filter, setFilter] = useState("");
   const [activeNav, setActiveNav] = useState("categories");
@@ -333,7 +378,10 @@ export default function LokaooCategories() {
             id: cat.id,
             key_name: cat.key_name,
             name: cat.name,
-            icon: catIcons[cat.name] || defaultIcon,
+            icon:
+              (cat.icon && catIconsByKey[cat.icon]) ||
+              catIcons[cat.name] ||
+              defaultIcon,
             color: cat.color_1 || catPalette[i % catPalette.length],
             emoji: cat.icon,
           }));
@@ -423,21 +471,6 @@ export default function LokaooCategories() {
                 </svg>
               )}
             </button>
-
-            <button className={`bdp-icon-btn ${saved ? "is-active" : ""}`} onClick={() => setSaved((v) => !v)}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M6 4h12v17l-6-4-6 4V4Z" />
-              </svg>
-            </button>
-
-            <button className={`bdp-icon-btn ${fav ? "saved" : ""}`} onClick={() => setFav((v) => !v)}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="6" cy="12" r="2.2" />
-                <circle cx="18" cy="6" r="2.2" />
-                <circle cx="18" cy="18" r="2.2" />
-                <path d="M8 11l8-4M8 13l8 4" />
-              </svg>
-            </button>
           </div>
 
           <div className="content">
@@ -482,9 +515,9 @@ export default function LokaooCategories() {
             </div>
           </div>
 
-          <Footer />
         </div>
       </div>
+      <Footer />
 
       <BottomNav items={bottomNavItems} activeNav={activeNav} onNavClick={handleNavClick} />
     </div>

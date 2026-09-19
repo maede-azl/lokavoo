@@ -1,71 +1,175 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import "./AdminDashboard.css";
 import logoBlack from "../assets/locavo-logo-black.png";
 import logoWhite from "../assets/locavo-logo-white.png";
+import api from "../api";
 
 function uid() {
   return "id-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 9);
 }
 
-/* ===== admin-data.js ===== */
-const fa = (n) =>
-  String(n).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)] ?? d);
+/* ===== رنگ و حروف اول برای نمایش آواتار، بر اساس نام (چون در دیتابیس ذخیره نمی‌شود) ===== */
+const AVATAR_PALETTE = ["#2547E8", "#BE185D", "#FF9736", "#0D9488", "#7C3AED", "#DC2626", "#5271FF", "#0891B2"];
+function colorForName(name) {
+  const str = String(name || "");
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
+}
+function initialsForName(name) {
+  const clean = String(name || "؟").trim();
+  return clean.slice(0, 2) || "؟";
+}
+function relativeFa(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  const diffMs = Date.now() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "همین الان";
+  if (diffMin < 60) return `${fa(diffMin)} دقیقه پیش`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `${fa(diffH)} ساعت پیش`;
+  const diffD = Math.floor(diffH / 24);
+  if (diffD === 1) return "دیروز";
+  if (diffD < 7) return `${fa(diffD)} روز پیش`;
+  return d.toLocaleDateString("fa-IR");
+}
 
-const faNum = (n) => fa(n.toLocaleString("en-US"));
+/* ===== نگاشت داده‌های واقعی بک‌اند به شکلی که کامپوننت‌های پنل ادمین انتظار دارند ===== */
+function mapBusinessToSeller(b) {
+  return {
+    id: b.id,
+    name: b.name,
+    owner: b.user?.name || b.user?.phone || "—",
+    category: b.category?.name || "—",
+    city: b.city || b.address || "—",
+    color: colorForName(b.name),
+    initials: initialsForName(b.name),
+    status: b.status,
+    banner: !!b.has_banner_access,
+    submitted: relativeFa(b.created_at),
+  };
+}
+function mapUserToRow(u) {
+  const roleLabel = u.role === "seller" ? "صاحب فروشگاه" : u.role === "admin" ? "ادمین" : "کاربر عادی";
+  return {
+    id: u.id,
+    name: u.name || u.phone || "—",
+    email: u.email || u.phone || "—",
+    joined: u.createdAt ? new Date(u.createdAt).toLocaleDateString("fa-IR") : "—",
+    role: roleLabel,
+    rawRole: u.role,
+    color: colorForName(u.name || u.phone),
+    initials: initialsForName(u.name || u.phone),
+    status: u.status,
+  };
+}
+function mapCategoryRow(c) {
+  return {
+    id: c.id,
+    key_name: c.key_name,
+    icon: c.icon || null,
+    emoji: null,
+    name: c.name,
+    count: c._count?.businesses ?? c.count ?? 0,
+  };
+}
+function mapProductRow(p) {
+  return {
+    id: p.id,
+    name: p.name,
+    seller: p.business?.name || "—",
+    category: p.category || "—",
+    price: p.price || 0,
+    status: p.active ? "active" : "hidden",
+  };
+}
+function mapPromoRow(p) {
+  return {
+    id: p.id,
+    seller: p.business?.name || "—",
+    type: p.type,
+    price: p.price,
+    days: p.days,
+    status: p.status,
+    visible: p.visible,
+    color: colorForName(p.business?.name),
+    initials: initialsForName(p.business?.name),
+    date: p.created_at ? new Date(p.created_at).toLocaleDateString("fa-IR") : "",
+  };
+}
+function mapThreadRow(t) {
+  const roleLabel = t.user?.role === "seller" ? "فروشنده" : t.user?.role === "admin" ? "ادمین" : "کاربر عادی";
+  return {
+    id: t.id,
+    userId: t.user_id,
+    name: t.user?.name || t.user?.phone || "کاربر",
+    role: roleLabel,
+    color: colorForName(t.user?.name),
+    initials: initialsForName(t.user?.name),
+    unread: t.unread || 0,
+    messages: (t.messages || []).map((m) => ({
+      id: m.id,
+      from: m.sender === "admin" ? "admin" : "user",
+      text: m.text,
+      time: m.created_at
+        ? new Intl.DateTimeFormat("fa-IR", { hour: "2-digit", minute: "2-digit" }).format(new Date(m.created_at))
+        : "",
+    })),
+  };
+}
 
-const initialSellers = [
-  { id: "s1", name: "کافه آرامش", owner: "حسین کریمی", category: "کافه", city: "تهران", color: "#2547E8", initials: "کآ", status: "pending", banner: false, submitted: "۲ ساعت پیش" },
-  { id: "s2", name: "بوتیک دیبا", owner: "مریم صادقی", category: "پوشاک", city: "اصفهان", color: "#BE185D", initials: "بد", status: "active", banner: true, submitted: "دیروز" },
-  { id: "s3", name: "خشکبار طلایی", owner: "رضا نوری", category: "خشکبار", city: "مشهد", color: "#FF9736", initials: "خط", status: "active", banner: false, submitted: "۳ روز پیش" },
-  { id: "s4", name: "آتلیه رزا", owner: "رزا محمدی", category: "آتلیه", city: "شیراز", color: "#0D9488", initials: "آر", status: "pending", banner: false, submitted: "دیروز" },
-  { id: "s5", name: "رستوران سنتی وحید", owner: "وحید امینی", category: "رستوران", city: "تبریز", color: "#7C3AED", initials: "رو", status: "suspended", banner: false, submitted: "هفته پیش" },
-  { id: "s6", name: "قنادی شیرین", owner: "الهام یاری", category: "قنادی", city: "کرج", color: "#DC2626", initials: "قش", status: "pending", banner: false, submitted: "۵ ساعت پیش" },
-];
 
-const initialUsers = [
-  { id: "u1", name: "سارا محمدی", email: "sara.m@mail.com", joined: "۱۴۰۴/۰۲/۱۱", role: "کاربر عادی", color: "#5271FF", initials: "سم", status: "active" },
-  { id: "u2", name: "امیر رضایی", email: "amir.r@mail.com", joined: "۱۴۰۴/۰۱/۳۰", role: "صاحب فروشگاه", color: "#0D9488", initials: "ار", status: "active" },
-  { id: "u3", name: "نگار احمدی", email: "negar.a@mail.com", joined: "۱۴۰۳/۱۲/۱۸", role: "کاربر عادی", color: "#DC2626", initials: "نا", status: "blocked" },
-  { id: "u4", name: "مریم صادقی", email: "maryam.s@mail.com", joined: "۱۴۰۳/۱۱/۰۵", role: "صاحب فروشگاه", color: "#BE185D", initials: "مص", status: "active" },
-  { id: "u5", name: "حسین کریمی", email: "hossein.k@mail.com", joined: "۱۴۰۴/۰۲/۰۲", role: "صاحب فروشگاه", color: "#FF9736", initials: "حک", status: "active" },
-];
-
-const clickData = {
-  today: [
-    { id: "s2", name: "بوتیک دیبا", color: "#BE185D", initials: "بد", category: "پوشاک", phone: 91, location: 33, site: 120 },
-    { id: "s1", name: "کافه آرامش", color: "#2547E8", initials: "کآ", category: "کافه", phone: 42, location: 18, site: 65 },
-    { id: "s3", name: "خشکبار طلایی", color: "#FF9736", initials: "خط", category: "خشکبار", phone: 27, location: 12, site: 20 },
-  ],
-  week: [
-    { id: "s2", name: "بوتیک دیبا", color: "#BE185D", initials: "بد", category: "پوشاک", phone: 512, location: 233, site: 806 },
-    { id: "s1", name: "کافه آرامش", color: "#2547E8", initials: "کآ", category: "کافه", phone: 388, location: 145, site: 470 },
-    { id: "s3", name: "خشکبار طلایی", color: "#FF9736", initials: "خط", category: "خشکبار", phone: 190, location: 88, site: 156 },
-  ],
-  month: [
-    { id: "s2", name: "بوتیک دیبا", color: "#BE185D", initials: "بد", category: "پوشاک", phone: 2140, location: 940, site: 3320 },
-    { id: "s1", name: "کافه آرامش", color: "#2547E8", initials: "کآ", category: "کافه", phone: 1580, location: 610, site: 1970 },
-    { id: "s3", name: "خشکبار طلایی", color: "#FF9736", initials: "خط", category: "خشکبار", phone: 820, location: 355, site: 690 },
-  ],
+/* ===== داده پیش‌فرض فوتر ===== */
+const initialFooterData = {
+  brand: { description: "مرجع پیدا کردن کسب‌وکارهای محلی؛ از نانوایی محله تا دفتر وکالت، همراه با آدرس دقیق، اطلاعات کامل و نظرات واقعی کاربران.", social: { instagram: "#", telegram: "#", x: "#" } },
+  columns: [],
+  bottomMade: "ساخته شده با ❤ برای کسب‌وکارهای محلی",
 };
 
-const rangeLabels = {
-  today: "امروز",
-  week: "این هفته",
-  month: "این ماه",
-};
 
-const initialCategories = [
-  { id: "c1", key_name: "cafe", icon: null, emoji: "☕", name: "کافه", count: 48 },
-  { id: "c2", key_name: "clothing", icon: null, emoji: "👗", name: "پوشاک", count: 63 },
-  { id: "c3", key_name: "dry-fruit", icon: null, emoji: "🌰", name: "خشکبار", count: 21 },
-  { id: "c4", key_name: "atelier", icon: null, emoji: "🎨", name: "آتلیه", count: 14 },
-  { id: "c5", key_name: "restaurant", icon: null, emoji: "🍽️", name: "رستوران", count: 37 },
-  { id: "c6", key_name: "confectionery", icon: null, emoji: "🧁", name: "قنادی", count: 19 },
-];
-
-/* ===== Category Icons (same as LokaooCategories) ===== */
+/* ===== سیستم آیکون دسته‌بندی — همسان با صفحه Categories ===== */
 const catIcons = {
+  "رستوران و کافه": `<path d="M6 2v8a2 2 0 0 0 2 2v10"/><path d="M6 2v6M9 2v6"/><path d="M17 2c-2.2 0-3 3-3 6.5S15 13 17 13v9"/>`,
+  "هتل و اقامتگاه": `<path d="M3 19v-8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v8"/><path d="M3 14h18"/><path d="M7 14v-2a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v2"/><path d="M3 19v2M21 19v2"/>`,
+  "پزشک، درمانگاه و بیمارستان": `<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>`,
+  "داروخانه": `<rect x="2" y="9" width="20" height="6" rx="3"/><path d="M12 9v6"/>`,
+  "آرایشگاه و سالن زیبایی": `<circle cx="6" cy="6" r="2.4"/><circle cx="6" cy="18" r="2.4"/><path d="M20 4L8.5 15.5M20 20L8.5 8.5"/>`,
+  "مراکز ماساژ و اسپا": `<path d="M12 2c4.2 4.2 7 8.3 7 12.2A7 7 0 0 1 5 14.2C5 10.3 7.8 6.2 12 2Z"/>`,
+  "باشگاه ورزشی": `<path d="M4 9v6M2 10v4M20 9v6M22 10v4"/><path d="M7 12h10"/><path d="M4 12h0M20 12h0"/>`,
+  "آموزشگاه و کلاس آموزشی": `<path d="M2 8l10-5 10 5-10 5-10-5Z"/><path d="M6 11v5c2 2 10 2 12 0v-5"/>`,
+  "سوپرمارکت و فروشگاه مواد غذایی": `<circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/><path d="M2 3h2l2.6 12.4a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L21 7H6"/>`,
+  "پوشاک و کیف و کفش": `<path d="M8 3l4 2 4-2 4 4-3 3v10H7V10L4 7Z"/>`,
+  "طلا، جواهر و اکسسوری": `<path d="M6 3h12l4 6-10 12L2 9Z"/><path d="M2 9h20M9 3l3 6-3 12M15 3l-3 6 3 12"/>`,
+  "موبایل و لوازم دیجیتال": `<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>`,
+  "خدمات کامپیوتر و فناوری": `<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>`,
+  "نمایشگاه خودرو": `<path d="M3 13l2-6h14l2 6"/><rect x="3" y="13" width="18" height="6" rx="1"/><circle cx="7.5" cy="19" r="1.5"/><circle cx="16.5" cy="19" r="1.5"/>`,
+  "تعمیرگاه خودرو": `<path d="M21 7a4 4 0 0 1-5.7 3.6L6.7 20 4 17.3l9.4-9.3A4 4 0 1 1 21 7Z"/>`,
+  "خدمات خودرو (کارواش، تعویض روغن و...)": `<path d="M12 2s6 6.8 6 11.5a6 6 0 0 1-12 0C6 8.8 12 2 12 2Z"/>`,
+  "بانک و خدمات مالی": `<path d="M3 10l9-6 9 6"/><path d="M4 10v9M9 10v9M15 10v9M20 10v9"/><path d="M2 21h20"/>`,
+  "املاک": `<path d="M4 21V10l8-6 8 6v11"/><path d="M9 21v-6h6v6"/>`,
+  "وکیل و مشاور حقوقی": `<path d="M12 3v18M6 21h12"/><path d="M3 7l4-3 4 3-4 4-4-4Z"/><path d="M13 7l4-3 4 3-4 4-4-4Z"/>`,
+  "عکاسی و آتلیه": `<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7l2-3h4l2 3"/><circle cx="12" cy="13.5" r="3.4"/>`,
+  "تالار و تشریفات": `<path d="M12 3l1.6 4.6L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.4Z"/><path d="M4 20h16"/>`,
+  "گل‌فروشی": `<circle cx="12" cy="12" r="2.3"/><circle cx="12" cy="5" r="2.3"/><circle cx="12" cy="19" r="2.3"/><circle cx="5" cy="12" r="2.3"/><circle cx="19" cy="12" r="2.3"/>`,
+  "کادو و صنایع دستی": `<rect x="3" y="9" width="18" height="12" rx="1"/><path d="M3 9V6h18v3"/><path d="M12 6v15"/><path d="M12 6c-2 0-4.5-1-4.5-3s2.5-2 4.5 0c2-2 4.5-2 4.5 0s-2.5 3-4.5 3Z"/>`,
+  "خدمات حیوانات خانگی": `<circle cx="7" cy="8" r="1.5"/><circle cx="11" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/><circle cx="18.5" cy="9" r="1.5"/><path d="M12 12c-3.8 0-6 2.3-6 4.8a3 3 0 0 0 6 1 3 3 0 0 0 6-1c0-2.5-2.2-4.8-6-4.8Z"/>`,
+  "خدمات فنی و تعمیرات": `<path d="M14 7l3 3-8 8-3-3 8-8Z"/><path d="M17 4l3 3-2 2-3-3 2-2Z"/>`,
+  "خدمات نظافت": `<path d="M6 21l9-9M15 6l3 3M18 3l3 3"/>`,
+  "حمل‌ونقل و باربری": `<rect x="1" y="7" width="13" height="9" rx="1"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="6" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/>`,
+  "آژانس مسافرتی": `<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7Z"/>`,
+  "اماکن مذهبی": `<path d="M12 2a5 5 0 0 1 5 5v2H7V7a5 5 0 0 1 5-5Z"/><path d="M4 21V13h16v8"/><path d="M12 13V9"/>`,
+  "مراکز فرهنگی و هنری": `<path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 2-2s-1-1.4-1-2.3 1-1.4 2-1.4h2.3A3.7 3.7 0 0 0 21 11.5C21 6.8 17 3 12 3Z"/><circle cx="7.5" cy="10.5" r="1.2"/><circle cx="11" cy="7.5" r="1.2"/><circle cx="15.5" cy="8.5" r="1.2"/>`,
+  "سینما و تفریح": `<rect x="3" y="8" width="18" height="13" rx="1"/><path d="M3 8l2-4h4l-2 4M11 8l2-4h4l-2 4"/>`,
+  "جاذبه‌های گردشگری": `<path d="M2 20l7-12 4 6 3-4 6 10Z"/>`,
+  "خدمات چاپ و تبلیغات": `<rect x="4" y="9" width="16" height="8" rx="1"/><path d="M7 9V4h10v5M7 17v4h10v-4"/>`,
+  "تولیدی و کارخانه": `<path d="M3 21V11l5 3v-3l5 3V8l5 3v10Z"/>`,
+  "سایر": `<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>`,
+};
+
+const catIconsByKey = {
   "restaurant-cafe": `<path d="M6 2v8a2 2 0 0 0 2 2v10"/><path d="M6 2v6M9 2v6"/><path d="M17 2c-2.2 0-3 3-3 6.5S15 13 17 13v9"/>`,
   "hotel": `<path d="M3 19v-8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v8"/><path d="M3 14h18"/><path d="M7 14v-2a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v2"/><path d="M3 19v2M21 19v2"/>`,
   "medical": `<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>`,
@@ -111,242 +215,72 @@ const catIcons = {
   "confectionery": `<path d="M4 11c0-3.5 2.5-6 4.5-6h7c2 0 4.5 2.5 4.5 6v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7Z"/><path d="M8 5v3M12 5v3M16 5v3"/><path d="M6 15h12"/>`,
 };
 
-const catIconsByName = {
-  "رستوران و کافه": catIcons["restaurant-cafe"],
-  "هتل و اقامتگاه": catIcons["hotel"],
-  "پزشک، درمانگاه و بیمارستان": catIcons["medical"],
-  "داروخانه": catIcons["pharmacy"],
-  "آرایشگاه و سالن زیبایی": catIcons["beauty"],
-  "مراکز ماساژ و اسپا": catIcons["spa"],
-  "باشگاه ورزشی": catIcons["gym"],
-  "آموزشگاه و کلاس آموزشی": catIcons["education"],
-  "سوپرمارکت و فروشگاه مواد غذایی": catIcons["supermarket"],
-  "پوشاک و کیف و کفش": catIcons["clothing"],
-  "طلا، جواهر و اکسسوری": catIcons["jewelry"],
-  "موبایل و لوازم دیجیتال": catIcons["mobile"],
-  "خدمات کامپیوتر و فناوری": catIcons["computer"],
-  "نمایشگاه خودرو": catIcons["car-showroom"],
-  "تعمیرگاه خودرو": catIcons["car-repair"],
-  "خدمات خودرو (کارواش، تعویض روغن و...)": catIcons["car-services"],
-  "بانک و خدمات مالی": catIcons["bank"],
-  "املاک": catIcons["real-estate"],
-  "وکیل و مشاور حقوقی": catIcons["lawyer"],
-  "عکاسی و آتلیه": catIcons["photography"],
-  "تالار و تشریفات": catIcons["event-hall"],
-  "گل‌فروشی": catIcons["florist"],
-  "کادو و صنایع دستی": catIcons["gift-handicraft"],
-  "خدمات حیوانات خانگی": catIcons["pet-services"],
-  "خدمات فنی و تعمیرات": catIcons["technical-services"],
-  "خدمات نظافت": catIcons["cleaning"],
-  "حمل‌ونقل و باربری": catIcons["transport"],
-  "آژانس مسافرتی": catIcons["travel-agency"],
-  "اماکن مذهبی": catIcons["religious"],
-  "مراکز فرهنگی و هنری": catIcons["cultural"],
-  "سینما و تفریح": catIcons["cinema"],
-  "جاذبه‌های گردشگری": catIcons["tourism"],
-  "خدمات چاپ و تبلیغات": catIcons["print-ads"],
-  "تولیدی و کارخانه": catIcons["factory"],
-  "نانوایی و قنادی": catIcons["Bakery"],
-  "میوه فروشی": catIcons["fruit"],
-  "سایر": catIcons["other"],
-  // نام‌های فعلی ادمین
-  "کافه": catIcons["cafe"],
-  "پوشاک": catIcons["clothing"],
-  "خشکبار": catIcons["dry-fruit"],
-  "آتلیه": catIcons["atelier"],
-  "رستوران": catIcons["restaurant"],
-  "قنادی": catIcons["confectionery"],
-};
-
 const defaultIconSvg = `<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>`;
 
-const ICON_OPTIONS = [
-  { key: "cafe", label: "کافه", emoji: "☕", color: "#2547E8" },
-  { key: "restaurant", label: "رستوران", emoji: "🍽️", color: "#EF4444" },
-  { key: "restaurant-cafe", label: "رستوران و کافه", emoji: "☕", color: "#F97316" },
-  { key: "clothing", label: "پوشاک", emoji: "👗", color: "#BE185D" },
-  { key: "dry-fruit", label: "خشکبار", emoji: "🌰", color: "#D97706" },
-  { key: "atelier", label: "آتلیه", emoji: "🎨", color: "#0D9488" },
-  { key: "confectionery", label: "قنادی", emoji: "🧁", color: "#EC4899" },
-  { key: "Bakery", label: "نانوایی و قنادی", emoji: "🍞", color: "#F59E0B" },
-  { key: "hotel", label: "هتل", emoji: "🏨", color: "#6366F1" },
-  { key: "medical", label: "پزشکی", emoji: "🏥", color: "#16A34A" },
-  { key: "pharmacy", label: "داروخانه", emoji: "💊", color: "#0EA5E9" },
-  { key: "beauty", label: "زیبایی", emoji: "💇", color: "#DB2777" },
-  { key: "spa", label: "اسپا", emoji: "💆", color: "#14B8A6" },
-  { key: "gym", label: "باشگاه", emoji: "🏋️", color: "#64748B" },
-  { key: "education", label: "آموزش", emoji: "🎓", color: "#7C3AED" },
-  { key: "supermarket", label: "سوپرمارکت", emoji: "🛒", color: "#059669" },
-  { key: "jewelry", label: "طلا و جواهر", emoji: "💎", color: "#A855F7" },
-  { key: "mobile", label: "موبایل", emoji: "📱", color: "#3B82F6" },
-  { key: "computer", label: "کامپیوتر", emoji: "💻", color: "#4F46E5" },
-  { key: "car-showroom", label: "نمایشگاه خودرو", emoji: "🚗", color: "#0891B2" },
-  { key: "car-repair", label: "تعمیرگاه", emoji: "🔧", color: "#78716C" },
-  { key: "car-services", label: "خدمات خودرو", emoji: "🛢️", color: "#CA8A04" },
-  { key: "bank", label: "بانک", emoji: "🏦", color: "#1D4ED8" },
-  { key: "real-estate", label: "املاک", emoji: "🏠", color: "#16A34A" },
-  { key: "lawyer", label: "حقوقی", emoji: "⚖️", color: "#475569" },
-  { key: "photography", label: "عکاسی", emoji: "📷", color: "#E11D48" },
-  { key: "event-hall", label: "تالار", emoji: "🎉", color: "#D946EF" },
-  { key: "florist", label: "گل‌فروشی", emoji: "🌸", color: "#F43F5E" },
-  { key: "gift-handicraft", label: "کادو", emoji: "🎁", color: "#F97316" },
-  { key: "pet-services", label: "حیوانات", emoji: "🐾", color: "#A16207" },
-  { key: "technical-services", label: "فنی", emoji: "🛠️", color: "#57534E" },
-  { key: "cleaning", label: "نظافت", emoji: "🧹", color: "#06B6D4" },
-  { key: "transport", label: "حمل‌ونقل", emoji: "🚚", color: "#2563EB" },
-  { key: "travel-agency", label: "مسافرتی", emoji: "✈️", color: "#0EA5E9" },
-  { key: "religious", label: "مذهبی", emoji: "🕌", color: "#059669" },
-  { key: "cultural", label: "فرهنگی", emoji: "🎭", color: "#8B5CF6" },
-  { key: "cinema", label: "سینما", emoji: "🎬", color: "#DC2626" },
-  { key: "tourism", label: "گردشگری", emoji: "🗺️", color: "#10B981" },
-  { key: "print-ads", label: "چاپ", emoji: "🖨️", color: "#64748B" },
-  { key: "factory", label: "کارخانه", emoji: "🏭", color: "#78716C" },
-  { key: "fruit", label: "میوه", emoji: "🍎", color: "#EF4444" },
-  { key: "other", label: "سایر", emoji: "📦", color: "#94A3B8" },
-];
+const ICON_OPTIONS = Object.keys(catIconsByKey).map((key, index) => {
+  const matched = Object.entries(catIcons).find(([, value]) => value === catIconsByKey[key]);
+  return {
+    key,
+    label: matched?.[0] || key,
+    emoji: "📦",
+    color: [
+      "#FF7A45", "#2547E8", "#16A34A", "#8B5CF6", "#EC4899",
+      "#F59E0B", "#06B6D4", "#EF4444", "#64748B", "#0EA5E9",
+      "#D946EF", "#22C55E", "#F97316", "#6366F1", "#14B8A6",
+    ][index % 15],
+  };
+});
 
-function resolveCategoryIcon(cat) {
-  const svg =
-    (cat.key_name && catIcons[cat.key_name]) ||
-    (cat.name && catIconsByName[cat.name]) ||
-    null;
-
-  if (svg) return { type: "svg", value: svg };
-  if (cat.emoji && String(cat.emoji).trim()) return { type: "emoji", value: cat.emoji };
-  return { type: "svg", value: defaultIconSvg };
-}
-
-function CatIconSvg({ icon, size = 22 }) {
+function CatIconSvg({ icon, size = 24, className = "" }) {
   return (
     <svg
+      className={className}
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
       strokeWidth="1.9"
       strokeLinecap="round"
       strokeLinejoin="round"
-      width={size}
-      height={size}
-      dangerouslySetInnerHTML={{ __html: icon }}
+      dangerouslySetInnerHTML={{ __html: icon || defaultIconSvg }}
     />
   );
 }
 
+function resolveCategoryIcon(category) {
+  const key = category?.key_name || "";
+  const name = category?.name || "";
+  const storedIcon = category?.icon || "";
 
-const initialProducts = [
-  { id: "p1", name: "دانه قهوه کلمبیا", seller: "کافه آرامش", category: "کافه", price: 480000, status: "active" },
-  { id: "p2", name: "مانتو بهاره", seller: "بوتیک دیبا", category: "پوشاک", price: 1250000, status: "active" },
-  { id: "p3", name: "پسته اکبری", seller: "خشکبار طلایی", category: "خشکبار", price: 990000, status: "hidden" },
-  { id: "p4", name: "کیک شکلاتی", seller: "قنادی شیرین", category: "قنادی", price: 320000, status: "review" },
-  { id: "p5", name: "شال نخی", seller: "بوتیک دیبا", category: "پوشاک", price: 290000, status: "active" },
-];
+  if (key && catIconsByKey[key]) {
+    return { type: "svg", value: catIconsByKey[key] };
+  }
 
-const initialPromos = [
-  { id: "pr1", seller: "کافه آرامش", type: "نمایش در صفحه اصلی", price: 300000, days: 14, status: "active", visible: true, color: "#2547E8", initials: "کآ", date: "۱۴۰۴/۰۵/۰۱" },
-  { id: "pr2", seller: "بوتیک دیبا", type: "بنر ویژه دسته‌بندی", price: 450000, days: 30, status: "pending", visible: false, color: "#BE185D", initials: "بد", date: "۱۴۰۴/۰۵/۲۹" },
-  { id: "pr3", seller: "خشکبار طلایی", type: "نشان فروشگاه برتر", price: 180000, days: 7, status: "pending", visible: false, color: "#FF9736", initials: "خط", date: "۱۴۰۴/۰۵/۲۷" },
-  { id: "pr4", seller: "آتلیه رزا", type: "نمایش در صفحه اصلی", price: 300000, days: 14, status: "pending", visible: false, color: "#0D9488", initials: "آر", date: "۱۴۰۴/۰۵/۲۵" },
-  { id: "pr5", seller: "رستوران سنتی وحید", type: "بنر ویژه دسته‌بندی", price: 450000, days: 30, status: "rejected", visible: false, color: "#7C3AED", initials: "رو", date: "۱۴۰۴/۰۴/۱۸" },
-];
+  if (name && catIcons[name]) {
+    return { type: "svg", value: catIcons[name] };
+  }
 
-const promoTypeInfo = {
-  "نمایش در صفحه اصلی": {
-    features: ["نمایش ویژه در صفحه اصلی سایت", "برچسب «پیشنهاد ویژه» روی فروشگاه", "اولویت در نتایج جستجو"],
-    featured: true,
-  },
-  "بنر ویژه دسته‌بندی": {
-    features: ["نمایش بنر در بالای صفحه دسته‌بندی", "دیده‌شدن بیشتر نزد مشتریان همان دسته", "گزارش کلیک اختصاصی بنر"],
-    featured: false,
-  },
-  "نشان فروشگاه برتر": {
-    features: ["نشان «فروشگاه برتر» کنار نام فروشگاه", "اولویت نمایش در لیست فروشگاه‌ها", "اعتماد بیشتر مشتریان"],
-    featured: false,
-  },
-};
+  if (typeof storedIcon === "string" && storedIcon.trim().startsWith("<")) {
+    return { type: "svg", value: storedIcon };
+  }
 
-const initialThreads = [
-  {
-    id: "t1",
-    name: "مریم صادقی",
-    role: "بوتیک دیبا · فروشنده",
-    color: "#BE185D",
-    initials: "مص",
-    unread: 2,
-    messages: [
-      { id: "m1", from: "user", text: "سلام، نمی‌تونم بنر فروشگاهم رو آپلود کنم، دسترسیش برام فعال نشده.", time: "۰۹:۱۲" },
-      { id: "m2", from: "user", text: "میشه لطفاً بررسی کنید؟", time: "۰۹:۱۳" },
-    ],
-  },
-  {
-    id: "t2",
-    name: "حسین کریمی",
-    role: "کافه آرامش · فروشنده",
-    color: "#2547E8",
-    initials: "حک",
-    unread: 1,
-    messages: [
-      { id: "m3", from: "user", text: "فروشگاهم هنوز تأیید نشده، چند روز طول می‌کشه؟", time: "دیروز" },
-    ],
-  },
-  {
-    id: "t3",
-    name: "سارا محمدی",
-    role: "کاربر عادی",
-    color: "#5271FF",
-    initials: "سم",
-    unread: 0,
-    messages: [
-      { id: "m4", from: "user", text: "شماره تماس یکی از فروشگاه‌ها اشتباهه.", time: "۲ روز پیش" },
-      { id: "m5", from: "admin", text: "ممنون از اطلاع‌رسانی، اصلاح شد ✅", time: "۲ روز پیش" },
-    ],
-  },
-  {
-    id: "t4",
-    name: "رضا نوری",
-    role: "خشکبار طلایی · فروشنده",
-    color: "#FF9736",
-    initials: "رن",
-    unread: 3,
-    messages: [
-      { id: "m6", from: "user", text: "می‌خوام تبلیغ صفحه اصلی بخرم، هزینه‌اش چقدره؟", time: "۰۸:۴۰" },
-    ],
-  },
-];
+  if (storedIcon && catIconsByKey[storedIcon]) {
+    return { type: "svg", value: catIconsByKey[storedIcon] };
+  }
 
-const initialFooterData = {
-  brand: {
-    description: "مرجع پیدا کردن کسب‌وکارهای محلی؛ از نانوایی محله تا دفتر وکالت، همراه با آدرس دقیق، اطلاعات کامل و نظرات واقعی کاربران.",
-    social: { instagram: "#", telegram: "#", x: "#" },
-  },
-  columns: [
-    { id: "col1", title: "لوکاوو", links: [
-      { id: "l1", label: "درباره ما", content: "لوکاوو یک پلتفرم برای پیدا کردن کسب‌وکارهای محلی است." },
-      { id: "l2", label: "فرصت‌های شغلی", content: "در حال حاضر فرصت شغلی باز اعلام‌نشده." },
-      { id: "l3", label: "وبلاگ", content: "به‌زودی مقالات و اخبار لوکاوو اینجا منتشر می‌شه." },
-      { id: "l4", label: "تماس با ما", content: "از فرم پشتیبانی یا شبکه‌های اجتماعی استفاده کن." },
-    ]},
-    { id: "col2", title: "برای کاربران", links: [
-      { id: "l5", label: "راهنمای استفاده", content: "راهنمای کامل استفاده از لوکاوو." },
-      { id: "l6", label: "سوالات متداول", content: "پرتکرارترین سوالات کاربران." },
-      { id: "l7", label: "پشتیبانی", content: "تیم پشتیبانی لوکاوو." },
-      { id: "l8", label: "قوانین و مقررات", content: "قوانین و مقررات پلتفرم." },
-    ]},
-    { id: "col3", title: "برای کسب‌وکارها", links: [
-      { id: "l9", label: "ثبت کسب‌وکار", content: "از صفحه‌ی «افزودن کسب‌وکار» استفاده کن." },
-      { id: "l10", label: "پنل فروشنده", content: "مدیریت اطلاعات، نظرات و نوبت‌دهی." },
-      { id: "l11", label: "تعرفه‌ها", content: "تعرفه‌های ثبت کسب‌وکار." },
-      { id: "l12", label: "راهنمای فروشندگان", content: "راهنمای گام‌به‌گام فروشندگان." },
-    ]},
-    { id: "col4", title: "دسترسی سریع", links: [
-      { id: "l13", label: "دسته‌بندی‌ها", content: "همه‌ی دسته‌بندی‌ها." },
-      { id: "l14", label: "نقشه شهر", content: "نقشه‌ی تعاملی کسب‌وکارها." },
-      { id: "l15", label: "تازه‌ترین‌ها", content: "تازه‌ترین کسب‌وکارهای ثبت‌شده." },
-      { id: "l16", label: "پرطرفدارها", content: "پرطرفدارترین کسب‌وکارها." },
-    ]},
-  ],
-  bottomText: "© تمامی حقوق برای لوکاوو محفوظ است.",
-  bottomMade: "ساخته شده با ❤ برای کسب‌وکارهای محلی",
-};
+  if (category?.emoji) {
+    return { type: "emoji", value: category.emoji };
+  }
+
+  return { type: "svg", value: defaultIconSvg };
+}
+
+/* ===== admin-data.js ===== */
+const fa = (n) =>
+  String(n).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)] ?? d);
+
+const faNum = (n) => fa(n.toLocaleString("en-US"));
 
 /* ===== icons.jsx ===== */
 const s = (props) => ({
@@ -392,6 +326,14 @@ const IconMegaphone = (p) => (
   <svg {...s(p)}>
     <path d="M3 11l18-5v12L3 14v-3z" />
     <path d="M11.6 16.9a2 2 0 0 1-3.8-1.1" />
+  </svg>
+);
+
+const IconWallet = (p) => (
+  <svg {...s(p)}>
+    <path d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v3" />
+    <path d="M3 7v11a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-4" />
+    <path d="M17 12h3a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-3a2 2 0 0 1 0-4z" />
   </svg>
 );
 
@@ -721,7 +663,7 @@ function Dropdown({
 
 const sellerStatusMeta = {
   pending: { label: "در انتظار", cls: "pending" },
-  active: { label: "فعال", cls: "approved" },
+  approved: { label: "فعال", cls: "approved" },
   suspended: { label: "تعلیق‌شده", cls: "rejected" },
   rejected: { label: "رد شده", cls: "rejected" },
 };
@@ -772,9 +714,9 @@ function RangePill({ value, onChange, options }) {
 
 /* ------------ dashboard ------------ */
 
-function DashboardView({ sellers, onGoto, onSellerStatus }) {
+function DashboardView({ sellers, stats, onGoto, onSellerStatus }) {
   const pending = sellers.filter((s) => s.status === "pending");
-  const active = sellers.filter((s) => s.status === "active");
+  const active = sellers.filter((s) => s.status === "approved");
 
   return (
     <section className="view">
@@ -818,10 +760,10 @@ function DashboardView({ sellers, onGoto, onSellerStatus }) {
 
       <div className="kpi-grid">
         {[
-          { icon: <IconUsers />, tint: "var(--primary-tint)", color: "var(--primary)", v: faNum(1240), l: "کل کاربران", t: "۸٫۲٪" },
-          { icon: <IconStore />, tint: "color-mix(in srgb, var(--ok) 16%, transparent)", color: "var(--ok)", v: fa(active.length + 383), l: "فروشگاه فعال", t: "۴٫۱٪" },
+          { icon: <IconUsers />, tint: "var(--primary-tint)", color: "var(--primary)", v: faNum(stats?.totalUsers ?? 0), l: "کل کاربران", t: "" },
+          { icon: <IconStore />, tint: "color-mix(in srgb, var(--ok) 16%, transparent)", color: "var(--ok)", v: fa(active.length), l: "فروشگاه فعال", t: "" },
           { icon: <IconCalendar />, tint: "color-mix(in srgb, var(--accent) 16%, transparent)", color: "var(--accent)", v: fa(pending.length), l: "در انتظار تأیید", t: "" },
-          { icon: <IconClick />, tint: "#FCE9F1", color: "#BE185D", v: faNum(29400), l: "کل کلیک این ماه", t: "۱۲٪" },
+          { icon: <IconClick />, tint: "#FCE9F1", color: "#BE185D", v: faNum(stats?.totalProducts ?? 0), l: "کل محصولات ثبت‌شده", t: "" },
         ].map((k) => (
           <div className="card kpi-card" key={k.l}>
             <div className="kpi-top">
@@ -873,7 +815,7 @@ function DashboardView({ sellers, onGoto, onSellerStatus }) {
               </div>
             </div>
             <div className="queue-actions">
-              <button className="btn btn-approve" onClick={() => onSellerStatus(s.id, "active")}>
+              <button className="btn btn-approve" onClick={() => onSellerStatus(s.id, "approved")}>
                 <IconCheck /> تأیید
               </button>
               <button className="btn btn-reject" onClick={() => onSellerStatus(s.id, "rejected")}>
@@ -918,7 +860,7 @@ function SellersView({ sellers, categories, onStatus, onBanner }) {
           options={[
             { value: "all", label: "همه وضعیت‌ها" },
             { value: "pending", label: "در انتظار", color: "var(--accent)" },
-            { value: "active", label: "فعال", color: "var(--ok)" },
+            { value: "approved", label: "فعال", color: "var(--ok)" },
             { value: "suspended", label: "تعلیق‌شده", color: "var(--bad)" },
             { value: "rejected", label: "رد شده", color: "var(--bad)" },
           ]}
@@ -992,7 +934,7 @@ function SellersView({ sellers, categories, onStatus, onBanner }) {
                       onChange={(v) => onStatus(s.id, v)}
                       options={[
                         { value: "pending", label: "در انتظار", color: "var(--accent)" },
-                        { value: "active", label: "فعال", color: "var(--ok)" },
+                        { value: "approved", label: "فعال", color: "var(--ok)" },
                         { value: "suspended", label: "تعلیق‌شده", color: "var(--bad)" },
                         { value: "rejected", label: "رد شده", color: "var(--bad)" },
                       ]}
@@ -1123,84 +1065,256 @@ function UsersView({ users, onStatus }) {
 
 /* ------------ clicks ------------ */
 
+function RevenueView() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.admin.getRevenue();
+        if (!cancelled) setData(res?.data || null);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (loading) {
+    return (
+      <section className="view">
+        <div className="empty-state">
+          <div className="e-title">در حال بارگذاری...</div>
+        </div>
+      </section>
+    );
+  }
+
+  if (!data) {
+    return (
+      <section className="view">
+        <div className="empty-state">
+          <div className="e-title">خطا در دریافت اطلاعات درآمد</div>
+        </div>
+      </section>
+    );
+  }
+
+  const maxTrend = Math.max(
+    ...data.monthlyTrend.map((m) => m.subscriptions + m.promos),
+    1
+  );
+
+  return (
+    <section className="view">
+      <div className="section-head">
+        <div>
+          <h3>کسب‌ودرآمد</h3>
+          <div className="section-sub">مجموع درآمد از اشتراک‌ها و تبلیغات (تا وصل شدن درگاه پرداخت، بر اساس تراکنش‌های ثبت‌شده)</div>
+        </div>
+      </div>
+
+      <div className="stat-strip">
+        <div className="card mini-stat">
+          <div className="l">درآمد ماهانه مستمر (MRR)</div>
+          <div className="v">{faNum(data.mrr)} تومان</div>
+        </div>
+        <div className="card mini-stat">
+          <div className="l">درآمد این ماه</div>
+          <div className="v">{faNum(data.revenueThisMonth)} تومان</div>
+        </div>
+        <div className="card mini-stat">
+          <div className="l">درآمد کل</div>
+          <div className="v">{faNum(data.totalRevenue)} تومان</div>
+        </div>
+        <div className="card mini-stat">
+          <div className="l">اشتراک‌های فعال</div>
+          <div className="v">{faNum(data.activeSubscriptionsCount)}</div>
+        </div>
+      </div>
+
+      <div className="card panel" style={{ marginBottom: 18 }}>
+        <h4 style={{ fontSize: 14, fontWeight: 800, marginBottom: 14 }}>روند ۶ ماه اخیر</h4>
+        <div className="growth-bars">
+          {data.monthlyTrend.map((m) => (
+            <div className="growth-col" key={m.month}>
+              <div
+                className="bar"
+                style={{ height: `${((m.subscriptions + m.promos) / maxTrend) * 100}%` }}
+                title={`${faNum(m.subscriptions + m.promos)} تومان`}
+              />
+              <div className="bar-label">{m.month}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {Object.keys(data.byPlan).length > 0 && (
+        <div className="card panel" style={{ marginBottom: 18 }}>
+          <h4 style={{ fontSize: 14, fontWeight: 800, marginBottom: 14 }}>تفکیک اشتراک فعال بر اساس پلن</h4>
+          <div className="stat-strip">
+            {Object.entries(data.byPlan).map(([planName, count]) => (
+              <div className="card mini-stat" key={planName}>
+                <div className="l">{planName}</div>
+                <div className="v">{faNum(count)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="card table-card">
+        <div className="table-scroll">
+          {data.recentTransactions.length === 0 ? (
+            <div className="empty-state">
+              <div className="e-title">هنوز تراکنشی ثبت نشده است</div>
+            </div>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>فروشگاه</th>
+                  <th>نوع</th>
+                  <th>مبلغ</th>
+                  <th>وضعیت</th>
+                  <th>تاریخ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.recentTransactions.map((t, i) => (
+                  <tr key={i}>
+                    <td>
+                      <div className="biz-cell">
+                        <div className="biz-logo" style={{ background: colorForName(t.business || '') }}>
+                          {initialsForName(t.business || '')}
+                        </div>
+                        <div className="biz-name">{t.business}</div>
+                      </div>
+                    </td>
+                    <td>{t.label}</td>
+                    <td>{faNum(t.amount)} تومان</td>
+                    <td>
+                      <span
+                        className="status-pill"
+                        style={{
+                          background: t.status === 'active' ? 'var(--ok-tint)' : t.status === 'rejected' || t.status === 'failed' ? 'var(--bad-tint)' : 'var(--card)',
+                          color: t.status === 'active' ? 'var(--ok)' : t.status === 'rejected' || t.status === 'failed' ? 'var(--bad)' : 'var(--text-muted)',
+                        }}
+                      >
+                        {t.status === 'active' ? 'فعال' : t.status === 'expired' ? 'منقضی' : t.status === 'rejected' ? 'رد شده' : 'در انتظار'}
+                      </span>
+                    </td>
+                    <td>{new Date(t.date).toLocaleDateString('fa-IR')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ClicksView() {
-  const [range, setRange] = useState("today");
-  const data = clickData[range] || [];
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.admin.getClicks();
+        if (!cancelled) setRows(res?.data || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const totalCalls = rows.reduce((a, x) => a + (x.call_count || 0), 0);
+  const totalRoutes = rows.reduce((a, x) => a + (x.route_count || 0), 0);
 
   return (
     <section className="view">
       <div className="section-head">
         <div>
           <h3>گزارش کلیک‌ها</h3>
-          <div className="section-sub">مبنای صورتحساب فروشنده‌ها</div>
+          <div className="section-sub">مبنای صورتحساب فروشنده‌ها — مجموع کل بازه فعالیت فروشگاه</div>
         </div>
-        <RangePill
-          value={range}
-          onChange={setRange}
-          options={[
-            { value: "today", label: "امروز" },
-            { value: "week", label: "این هفته" },
-            { value: "month", label: "این ماه" },
-          ]}
-        />
       </div>
 
       <div className="stat-strip">
         <div className="card mini-stat">
           <div className="l">کل کلیک تلفن</div>
-          <div className="v">{faNum(data.reduce((a, x) => a + x.phone, 0))}</div>
+          <div className="v">{faNum(totalCalls)}</div>
         </div>
         <div className="card mini-stat">
-          <div className="l">کل کلیک موقعیت</div>
-          <div className="v">{faNum(data.reduce((a, x) => a + x.location, 0))}</div>
-        </div>
-        <div className="card mini-stat">
-          <div className="l">کل کلیک سایت</div>
-          <div className="v">{faNum(data.reduce((a, x) => a + x.site, 0))}</div>
+          <div className="l">کل کلیک مسیریابی</div>
+          <div className="v">{faNum(totalRoutes)}</div>
         </div>
         <div className="card mini-stat">
           <div className="l">مجموع</div>
-          <div className="v">{faNum(data.reduce((a, x) => a + x.phone + x.location + x.site, 0))}</div>
+          <div className="v">{faNum(totalCalls + totalRoutes)}</div>
         </div>
       </div>
 
       <div className="card table-card">
         <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>فروشگاه</th>
-                <th>دسته</th>
-                <th>تلفن</th>
-                <th>موقعیت</th>
-                <th>سایت</th>
-                <th>مجموع</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.map((x) => (
-                <tr key={x.id}>
-                  <td>
-                    <div className="biz-cell">
-                      <div className="biz-logo" style={{ background: x.color }}>
-                        {x.initials}
-                      </div>
-                      <div className="biz-name">{x.name}</div>
-                    </div>
-                  </td>
-                  <td>
-                    <span className="cat-tag">{x.category}</span>
-                  </td>
-                  <td>{faNum(x.phone)}</td>
-                  <td>{faNum(x.location)}</td>
-                  <td>{faNum(x.site)}</td>
-                  <td>
-                    <b>{faNum(x.phone + x.location + x.site)}</b>
-                  </td>
+          {loading ? (
+            <div className="empty-state">
+              <div className="e-title">در حال بارگذاری...</div>
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="empty-state">
+              <div className="e-title">هنوز کلیکی ثبت نشده است</div>
+            </div>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>فروشگاه</th>
+                  <th>دسته</th>
+                  <th>تلفن</th>
+                  <th>مسیریابی</th>
+                  <th>مجموع</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((x) => (
+                  <tr key={x.id}>
+                    <td>
+                      <div className="biz-cell">
+                        <div className="biz-logo" style={{ background: colorForName(x.name) }}>
+                          {initialsForName(x.name)}
+                        </div>
+                        <div className="biz-name">{x.name}</div>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="cat-tag">{x.category?.name || "—"}</span>
+                    </td>
+                    <td>{faNum(x.call_count || 0)}</td>
+                    <td>{faNum(x.route_count || 0)}</td>
+                    <td>
+                      <b>{faNum((x.call_count || 0) + (x.route_count || 0))}</b>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </section>
@@ -1309,10 +1423,10 @@ function CategoriesView({ categories, onAdd, onEdit, onDelete }) {
   const submit = () => {
     if (!name.trim()) return;
     if (editId) {
-      onEdit(editId, null, emoji, name.trim(), keyName);
+      onEdit(editId, keyName, emoji, name.trim(), null);
       setEditId(null);
     } else {
-      onAdd(null, emoji, name.trim(), keyName);
+      onAdd(keyName, emoji, name.trim(), null);
     }
     setName("");
     setEmoji("📦");
@@ -1440,7 +1554,7 @@ function CategoriesView({ categories, onAdd, onEdit, onDelete }) {
                     setEditId(c.id);
                     setName(c.name);
                     setEmoji(c.emoji || "📦");
-                    setKeyName(c.key_name || "other");
+                    setKeyName(c.icon || "other");
                     setPickerOpen(false);
                   }}
                 >
@@ -1596,14 +1710,31 @@ function SupportView({ threads, activeId, onSelect, onSend }) {
   const [q, setQ] = useState("");
   const [text, setText] = useState("");
   const [pane, setPane] = useState("list");
-  const active = threads.find((t) => t.id === activeId) ?? threads[0];
-  const list = threads.filter((t) => q.trim() === "" || t.name.includes(q.trim()) || t.role.includes(q.trim()));
+  const safeThreads = Array.isArray(threads) ? threads : [];
+  const active = safeThreads.find((t) => t.id === activeId) ?? safeThreads[0] ?? null;
+  const list = safeThreads.filter(
+    (t) =>
+      q.trim() === "" ||
+      String(t.name || "").includes(q.trim()) ||
+      String(t.role || "").includes(q.trim())
+  );
 
   const send = () => {
-    if (!text.trim()) return;
+    if (!active || !text.trim()) return;
     onSend(active.id, text.trim());
     setText("");
   };
+
+  if (!active) {
+    return (
+      <section className="view">
+        <div className="card empty-state">
+          <div className="e-title">هنوز پیام پشتیبانی ثبت نشده است</div>
+          <div className="e-sub">وقتی کاربری پیام ارسال کند، گفت‌وگوهای پشتیبانی اینجا نمایش داده می‌شوند.</div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="view">
@@ -1627,7 +1758,7 @@ function SupportView({ threads, activeId, onSelect, onSend }) {
               </div>
               <div>
                 <div className="t-name">{t.name}</div>
-                <div className="t-prev">{t.messages[t.messages.length - 1]?.text}</div>
+                <div className="t-prev">{t.messages?.[t.messages.length - 1]?.text || "بدون پیام"}</div>
               </div>
               {t.unread > 0 ? <span className="t-unread">{fa(t.unread)}</span> : null}
             </button>
@@ -1648,7 +1779,7 @@ function SupportView({ threads, activeId, onSelect, onSend }) {
             </div>
           </div>
           <div className="chat-body">
-            {active.messages.map((m) => (
+            {(active.messages || []).map((m) => (
               <div className={"bubble " + (m.from === "admin" ? "me" : "them")} key={m.id}>
                 {m.text}
                 <span className="b-time">{m.time}</span>
@@ -1676,7 +1807,69 @@ function SupportView({ threads, activeId, onSelect, onSend }) {
 /* ------------ settings ------------ */
 
 function SettingsView({ onToast }) {
+  const navigate = useNavigate();
   const [toggles, setToggles] = useState({ registration: true, autoApprove: false, maintenance: false });
+  const [siteName, setSiteName] = useState("LOKAOO");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.admin.getSettings();
+        if (cancelled || !res?.data) return;
+        setToggles({
+          registration: !!res.data.registration_open,
+          autoApprove: !!res.data.auto_approve,
+          maintenance: !!res.data.maintenance_mode,
+        });
+        setSiteName(res.data.site_name || "LOKAOO");
+      } catch (err) {
+        onToast(err.message || "خطا در دریافت تنظیمات", "no");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const saveSettings = async () => {
+    setSaving(true);
+    try {
+      await api.admin.updateSettings({
+        site_name: siteName,
+        registration_open: toggles.registration,
+        auto_approve: toggles.autoApprove,
+        maintenance_mode: toggles.maintenance,
+      });
+      onToast("تنظیمات ذخیره شد", "ok");
+    } catch (err) {
+      onToast(err.message || "خطا در ذخیره تنظیمات", "no");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("activeBusinessId");
+    navigate("/auth", { replace: true });
+  };
+
+  if (loading) {
+    return (
+      <section className="view">
+        <div className="empty-state">
+          <div className="e-title">در حال بارگذاری تنظیمات...</div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="view">
@@ -1686,18 +1879,15 @@ function SettingsView({ onToast }) {
           <div className="desc">تصویر بنری که در صفحه اصلی LOKAOO نمایش داده می‌شود</div>
           <div className="empty-state" style={{ padding: 24, border: "1.5px dashed var(--border)", borderRadius: 12, marginBottom: 14 }}>
             <IconImage />
-            <div className="e-sub">آپلود تصویر بنر</div>
+            <div className="e-sub">آپلود تصویر بنر (به‌زودی)</div>
           </div>
-          <button className="save-btn" onClick={() => onToast("تغییرات ذخیره شد", "ok")}>
-            ذخیره
-          </button>
         </div>
         <div className="card settings-card">
           <h4>تنظیمات عمومی</h4>
           <div className="desc">پیکربندی کلی رفتار پلتفرم</div>
           <div className="field-row">
             <label>نام سایت</label>
-            <input defaultValue="LOKAOO" />
+            <input value={siteName} onChange={(e) => setSiteName(e.target.value)} />
           </div>
           <div className="toggle-row">
             <div>
@@ -1720,8 +1910,8 @@ function SettingsView({ onToast }) {
             </div>
             <Switch on={toggles.maintenance} onClick={() => setToggles({ ...toggles, maintenance: !toggles.maintenance })} />
           </div>
-          <button className="save-btn" onClick={() => onToast("تنظیمات ذخیره شد", "ok")}>
-            ذخیره تغییرات
+          <button className="save-btn" disabled={saving} onClick={saveSettings}>
+            {saving ? "در حال ذخیره..." : "ذخیره تغییرات"}
           </button>
         </div>
 
@@ -1735,7 +1925,7 @@ function SettingsView({ onToast }) {
             </button>
             <button
               className="account-btn danger"
-              onClick={() => onToast("از پنل مدیریت خارج شدید", "no")}
+              onClick={handleLogout}
             >
               <IconLogout />
               خروج
@@ -1750,6 +1940,19 @@ function SettingsView({ onToast }) {
 function FooterManagementView({ data, onChange, onToast }) {
   const [newColTitle, setNewColTitle] = useState("");
   const [linkDrafts, setLinkDrafts] = useState({});
+  const [saving, setSaving] = useState(false);
+
+  const saveFooter = async () => {
+    setSaving(true);
+    try {
+      await api.admin.updateFooter(data);
+      onToast("تغییرات فوتر ذخیره شد", "ok");
+    } catch (err) {
+      onToast(err.message || "خطا در ذخیره فوتر", "no");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const updateBrandDesc = (v) => onChange({ ...data, brand: { ...data.brand, description: v } });
   const updateSocial = (key, v) => onChange({ ...data, brand: { ...data.brand, social: { ...data.brand.social, [key]: v } } });
@@ -1826,11 +2029,7 @@ function FooterManagementView({ data, onChange, onToast }) {
 
       <div className="card settings-card">
         <h4>متن پایین فوتر</h4>
-        <div className="desc">کپی‌رایت و متن کوچک کنار آن</div>
-        <div className="field-row">
-          <label>متن کپی‌رایت</label>
-          <input value={data.bottomText} onChange={(e) => updateBottom("bottomText", e.target.value)} />
-        </div>
+        <div className="desc">متن کوچکی که زیر فوتر نمایش داده می‌شود</div>
         <div className="field-row">
           <label>متن «ساخته شده با...»</label>
           <input value={data.bottomMade} onChange={(e) => updateBottom("bottomMade", e.target.value)} />
@@ -1891,8 +2090,8 @@ function FooterManagementView({ data, onChange, onToast }) {
         ))}
       </div>
 
-      <button className="save-btn" onClick={() => onToast("تغییرات فوتر ذخیره شد", "ok")}>
-        ذخیره همه تغییرات
+      <button className="save-btn" disabled={saving} onClick={saveFooter}>
+        {saving ? "در حال ذخیره..." : "ذخیره همه تغییرات"}
       </button>
     </section>
   );
@@ -1906,6 +2105,7 @@ const titles = {
   users: ["کاربران", "همه افرادی که در پلتفرم حساب کاربری دارند"],
   clicks: ["گزارش کلیک‌ها", "مبنای صورتحساب فروشنده‌ها بر اساس کلیک‌های ثبت‌شده"],
   promotions: ["رشد و تبلیغات", "مدیریت درخواست‌ها و نمایش ویژه فروشگاه‌ها"],
+  revenue: ["کسب‌ودرآمد", "آمار درآمد از اشتراک‌ها و تبلیغات"],
   categories: ["دسته‌بندی‌ها", "ساختار دسته‌بندی‌های سایت"],
   products: ["محصولات", "نظارت بر محصولات ثبت‌شده توسط فروشنده‌ها"],
   support: ["پیام‌ها و پشتیبانی", "ارتباط با کاربران و فروشنده‌ها"],
@@ -1922,15 +2122,75 @@ function AdminDashboard() {
   const [toast, setToast] = useState(null);
   const [viewHistory, setViewHistory] = useState([]);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [sellers, setSellers] = useState(initialSellers);
-  const [users, setUsers] = useState(initialUsers);
-  const [categories, setCategories] = useState(initialCategories);
-  const [products, setProducts] = useState(initialProducts);
-  const [promos, setPromos] = useState(initialPromos);
-  const [threads, setThreads] = useState(initialThreads);
+  const [sellers, setSellers] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [promos, setPromos] = useState([]);
+  const [threads, setThreads] = useState([]);
   const [footerData, setFooterData] = useState(initialFooterData);
-  const [activeThread, setActiveThread] = useState(initialThreads[0].id);
+  const [stats, setStats] = useState(null);
+  const [activeThread, setActiveThread] = useState(null);
+  const [adminLoading, setAdminLoading] = useState(true);
   const searchWrapRef = useRef(null);
+
+  // ===== بارگذاری داده‌های واقعی از بک‌اند =====
+  const loadAdminData = async () => {
+    setAdminLoading(true);
+    try {
+      const [statsRes, businessesRes, usersRes, categoriesRes, productsRes, promosRes, threadsRes, footerRes] =
+        await Promise.all([
+          api.admin.getStats().catch(() => ({ data: null })),
+          api.admin.getBusinesses().catch(() => ({ data: [] })),
+          api.admin.getUsers().catch(() => ({ data: [] })),
+          api.business.getCategories().catch(() => ({ data: [] })),
+          api.admin.getProducts().catch(() => ({ data: [] })),
+          api.admin.getPromos().catch(() => ({ data: [] })),
+          api.admin.getThreads().catch(() => ({ data: [] })),
+          api.admin.getFooter().catch(() => null),
+        ]);
+
+      setStats(statsRes?.data || null);
+      setSellers((businessesRes?.data || []).map(mapBusinessToSeller));
+      setUsers((usersRes?.data || []).map(mapUserToRow));
+      setCategories((categoriesRes?.data || []).map(mapCategoryRow));
+      setProducts((productsRes?.data || []).map(mapProductRow));
+      setPromos((promosRes?.data || []).map(mapPromoRow));
+
+      const mappedThreads = (threadsRes?.data || []).map(mapThreadRow);
+      setThreads(mappedThreads);
+      setActiveThread((prev) => prev || mappedThreads[0]?.id || null);
+
+      if (footerRes?.data) setFooterData(footerRes.data);
+    } catch (err) {
+      console.error("خطا در دریافت اطلاعات پنل ادمین:", err);
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAdminData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
+  // دریافت خودکار پیام‌های جدید پشتیبانی بدون نیاز به Refresh
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await api.admin.getThreads();
+        const mappedThreads = (res?.data || []).map(mapThreadRow);
+        setThreads(mappedThreads);
+        setActiveThread((prev) => prev || mappedThreads[0]?.id || null);
+      } catch (err) {
+        console.error("خطا در به‌روزرسانی پیام‌های پشتیبانی:", err);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
 
   useEffect(() => {
     if (!toast) return;
@@ -1994,6 +2254,7 @@ const goBack = () => {
         { key: "users", icon: <IconUsers /> },
         { key: "clicks", icon: <IconClick /> },
         { key: "promotions", icon: <IconMegaphone />, badge: pendingPromos },
+        { key: "revenue", icon: <IconWallet /> },
         { key: "categories", icon: <IconGrid /> },
         { key: "products", icon: <IconBox /> },
         { key: "support", icon: <IconChat />, badge: unread },
@@ -2005,12 +2266,31 @@ const goBack = () => {
 ] },
   ];
 
-  const setSellerStatus = (id, status) => {
+  const setSellerStatus = async (id, status) => {
+    const prevSellers = sellers;
     setSellers((prev) => prev.map((s) => (s.id === id ? { ...s, status } : s)));
-    showToast(
-      status === "active" ? "فروشگاه تأیید شد" : status === "rejected" ? "درخواست رد شد" : "وضعیت فروشگاه تغییر کرد",
-      status === "active" ? "ok" : "no",
-    );
+    try {
+      await api.admin.updateBusinessStatus(id, status);
+      showToast(
+        status === "approved" ? "فروشگاه تأیید شد" : status === "rejected" ? "درخواست رد شد" : "وضعیت فروشگاه تغییر کرد",
+        status === "approved" ? "ok" : "no",
+      );
+    } catch (err) {
+      setSellers(prevSellers);
+      showToast(err.message || "خطا در تغییر وضعیت فروشگاه", "no");
+    }
+  };
+
+  const toggleSellerBanner = async (id) => {
+    const prevSellers = sellers;
+    setSellers((prev) => prev.map((s) => (s.id === id ? { ...s, banner: !s.banner } : s)));
+    try {
+      await api.admin.toggleBusinessBanner(id);
+      showToast("دسترسی بنر تغییر کرد", "ok");
+    } catch (err) {
+      setSellers(prevSellers);
+      showToast(err.message || "خطا در تغییر دسترسی بنر", "no");
+    }
   };
 
   return (
@@ -2164,7 +2444,7 @@ const goBack = () => {
             ) : null}
 
             {view === "dashboard" && (
-              <DashboardView sellers={sellers} onGoto={goto} onSellerStatus={setSellerStatus} />
+              <DashboardView sellers={sellers} stats={stats} onGoto={goto} onSellerStatus={setSellerStatus} />
             )}
 
             {view === "sellers" && (
@@ -2172,57 +2452,97 @@ const goBack = () => {
                 sellers={sellers}
                 categories={categories}
                 onStatus={setSellerStatus}
-                onBanner={(id) => {
-                  setSellers((prev) => prev.map((s) => (s.id === id ? { ...s, banner: !s.banner } : s)));
-                  showToast("دسترسی بنر تغییر کرد", "ok");
-                }}
+                onBanner={toggleSellerBanner}
               />
             )}
 
             {view === "users" && (
               <UsersView
                 users={users}
-                onStatus={(id, status) => {
+                onStatus={async (id, status) => {
+                  const prevUsers = users;
                   setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, status } : u)));
-                  showToast(status === "blocked" ? "کاربر مسدود شد" : "کاربر فعال شد", status === "blocked" ? "no" : "ok");
+                  try {
+                    await api.admin.updateUserStatus(id, status);
+                    showToast(status === "blocked" ? "کاربر مسدود شد" : "کاربر فعال شد", status === "blocked" ? "no" : "ok");
+                  } catch (err) {
+                    setUsers(prevUsers);
+                    showToast(err.message || "خطا در تغییر وضعیت کاربر", "no");
+                  }
                 }}
               />
             )}
 
             {view === "clicks" && <ClicksView />}
 
+            {view === "revenue" && <RevenueView />}
+
             {view === "promotions" && (
               <PromotionsView
                 promos={promos}
-                onStatus={(id, status) => {
+                onStatus={async (id, status) => {
+                  const prevPromos = promos;
                   setPromos((prev) => prev.map((p) => (p.id === id ? { ...p, status, visible: status === "active" } : p)));
-                  showToast(status === "active" ? "تبلیغ تأیید شد" : status === "rejected" ? "تبلیغ رد شد" : "به صف بازگشت", status === "rejected" ? "no" : "ok");
+                  try {
+                    await api.admin.updatePromoStatus(id, status);
+                    showToast(status === "active" ? "تبلیغ تأیید شد" : status === "rejected" ? "تبلیغ رد شد" : "به صف بازگشت", status === "rejected" ? "no" : "ok");
+                  } catch (err) {
+                    setPromos(prevPromos);
+                    showToast(err.message || "خطا در تغییر وضعیت تبلیغ", "no");
+                  }
                 }}
-                onVisible={(id) => setPromos((prev) => prev.map((p) => (p.id === id ? { ...p, visible: !p.visible } : p)))}
+                onVisible={async (id) => {
+                  const prevPromos = promos;
+                  setPromos((prev) => prev.map((p) => (p.id === id ? { ...p, visible: !p.visible } : p)));
+                  try {
+                    await api.admin.togglePromoVisible(id);
+                  } catch (err) {
+                    setPromos(prevPromos);
+                    showToast(err.message || "خطا در تغییر نمایش تبلیغ", "no");
+                  }
+                }}
               />
             )}
 
 {view === "categories" && (
   <CategoriesView
     categories={categories}
-    onAdd={(icon, emoji, name, key_name) => {
-      setCategories((prev) => [
-        ...prev,
-        { id: uid(), icon, emoji, name, key_name: key_name || "other", count: 0 },
-      ]);
-      showToast("دسته‌بندی اضافه شد", "ok");
+    onAdd={async (icon, emoji, name, key_name) => {
+      try {
+        const color_1 = ICON_OPTIONS.find((o) => o.key === icon)?.color || "#94A3B8";
+        const res = await api.admin.createCategory({ name, icon, color_1 });
+        setCategories((prev) => [...prev, mapCategoryRow(res.data)]);
+        showToast("دسته‌بندی اضافه شد", "ok");
+      } catch (err) {
+        showToast(err.message || "خطا در افزودن دسته‌بندی", "no");
+      }
     }}
-    onEdit={(id, icon, emoji, name, key_name) => {
+    onEdit={async (id, icon, emoji, name, key_name) => {
+      const prevCategories = categories;
+      const color_1 = ICON_OPTIONS.find((o) => o.key === icon)?.color || "#94A3B8";
       setCategories((prev) =>
         prev.map((c) =>
-          c.id === id ? { ...c, icon, emoji, name, key_name: key_name || c.key_name } : c
+          c.id === id ? { ...c, icon, emoji, name, color: color_1 } : c
         )
       );
-      showToast("دسته‌بندی ویرایش شد", "ok");
+      try {
+        await api.admin.updateCategory(id, { name, icon, color_1 });
+        showToast("دسته‌بندی ویرایش شد", "ok");
+      } catch (err) {
+        setCategories(prevCategories);
+        showToast(err.message || "خطا در ویرایش دسته‌بندی", "no");
+      }
     }}
-    onDelete={(id) => {
+    onDelete={async (id) => {
+      const prevCategories = categories;
       setCategories((prev) => prev.filter((c) => c.id !== id));
-      showToast("دسته‌بندی حذف شد", "no");
+      try {
+        await api.admin.deleteCategory(id);
+        showToast("دسته‌بندی حذف شد", "no");
+      } catch (err) {
+        setCategories(prevCategories);
+        showToast(err.message || "خطا در حذف دسته‌بندی (احتمالاً در حال استفاده است)", "no");
+      }
     }}
   />
 )}
@@ -2232,13 +2552,27 @@ const goBack = () => {
                 products={products}
                 sellers={sellers}
                 categories={categories}
-                onStatus={(id, status) => {
+                onStatus={async (id, status) => {
+                  const prevProducts = products;
                   setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, status } : p)));
-                  showToast("وضعیت محصول تغییر کرد", status === "hidden" ? "no" : "ok");
+                  try {
+                    await api.admin.updateProductActive(id, status === "active");
+                    showToast("وضعیت محصول تغییر کرد", status === "hidden" ? "no" : "ok");
+                  } catch (err) {
+                    setProducts(prevProducts);
+                    showToast(err.message || "خطا در تغییر وضعیت محصول", "no");
+                  }
                 }}
-                onDelete={(id) => {
+                onDelete={async (id) => {
+                  const prevProducts = products;
                   setProducts((prev) => prev.filter((p) => p.id !== id));
-                  showToast("محصول حذف شد", "no");
+                  try {
+                    await api.admin.deleteProduct(id);
+                    showToast("محصول حذف شد", "no");
+                  } catch (err) {
+                    setProducts(prevProducts);
+                    showToast(err.message || "خطا در حذف محصول", "no");
+                  }
                 }}
               />
             )}
@@ -2250,9 +2584,11 @@ const goBack = () => {
                 onSelect={(id) => {
                   setActiveThread(id);
                   setThreads((prev) => prev.map((t) => (t.id === id ? { ...t, unread: 0 } : t)));
+                  api.admin.markThreadRead(id).catch(() => {});
                 }}
-                onSend={(id, text) => {
+                onSend={async (id, text) => {
                   const time = new Intl.DateTimeFormat("fa-IR", { hour: "2-digit", minute: "2-digit" }).format(new Date());
+                  const prevThreads = threads;
                   setThreads((prev) =>
                     prev.map((t) =>
                       t.id === id
@@ -2260,7 +2596,13 @@ const goBack = () => {
                         : t,
                     ),
                   );
-                  showToast("پیام ارسال شد", "ok");
+                  try {
+                    await api.admin.sendThreadMessage(id, text);
+                    showToast("پیام ارسال شد", "ok");
+                  } catch (err) {
+                    setThreads(prevThreads);
+                    showToast(err.message || "خطا در ارسال پیام", "no");
+                  }
                 }}
               />
             )}
